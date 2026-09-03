@@ -1,0 +1,21 @@
+{
+  "name": "qi-yi-jun-vs-zhou-ji-wang",
+  "version": "1.0.0",
+  "description": "起义军大战肘击王 - H5横屏射击游戏（可打包为 Android APK）",
+  "main": "index.html",
+  "private": true,
+  "author": "Trae Game Studio",
+  "scripts": {
+    "cap:sync": "npx cap sync",
+    "cap:add:android": "npx cap add android",
+    "cap:open:android": "npx cap open android",
+    "cap:copy": "npx cap copy android",
+    "build:android:debug": "cd android && ./gradlew assembleDebug && echo APK路径: app/build/outputs/apk/debug/app-debug.apk",
+    "build:android:release": "cd android && ./gradlew assembleRelease && echo APK路径: app/build/outputs/apk/release/app-release.apk"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.7.4",
+    "@capacitor/android": "^5.7.4",
+    "@capacitor/core": "^5.7.4"
+  }
+}

@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="screen-orientation" content="portrait">
+<meta name="screen-orientation" content="landscape">
+<meta name="x5-orientation" content="landscape">
+<meta name="x5-fullscreen" content="true">
+<meta name="x5-page-mode" content="app">
 <meta name="theme-color" content="#0a0a14">
-<title>起义军大战肘击王</title>
+<title>起义军大战肘击王 · 横屏版</title>
 <style>
   :root {
     --bg-dark: #0a0a14;
@@ -31,6 +34,24 @@
     overscroll-behavior: none;
     touch-action: none;
   }
+  /* 强制横屏时若设备竖屏，显示提示 */
+  #rotateHint {
+    display: none;
+    position: fixed; inset: 0; z-index: 999;
+    background: #0a0a14; color: #ffd43b;
+    flex-direction: column; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; letter-spacing: 2px;
+    padding: 24px; text-align: center;
+  }
+  #rotateHint svg { width: 90px; height: 90px; margin-bottom: 18px; animation: rot 1.8s ease-in-out infinite; }
+  @keyframes rot {
+    0%,100% { transform: rotate(0); }
+    50%     { transform: rotate(90deg); }
+  }
+  @media (orientation: portrait) and (max-width: 900px){
+    #rotateHint { display: flex; }
+    #app        { display: none; }
+  }
   #app {
     position: fixed; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -47,27 +68,28 @@
     width: 100%; height: 100%;
     display: block;
   }
-  /* HUD 顶部状态 */
+  /* HUD 顶部状态（横屏更宽，BOSS 血条占比放宽） */
   .hud {
     position: absolute; left: 0; right: 0; top: 0;
-    padding: 12px 14px;
+    padding: 10px 16px;
     display: flex; justify-content: space-between; align-items: flex-start;
     z-index: 10;
     pointer-events: none;
   }
   .hud .boss-wrap {
-    flex: 1; max-width: 78%;
+    flex: 1; max-width: 68%;
     background: var(--bg-panel);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--radius-md);
-    padding: 6px 10px;
+    padding: 6px 12px;
   }
   .hud .boss-name {
     font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 1px;
     margin-bottom: 4px;
-    display: flex; justify-content: space-between;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 4px 10px;
   }
   .hud .boss-name span:last-child { color: var(--text-dim); font-weight: 500; }
   .hud .boss-hp-bar {
@@ -85,23 +107,23 @@
   }
   .hud .wave-tag {
     margin-left: 10px;
-    padding: 4px 10px;
+    padding: 5px 12px;
     background: var(--bg-panel);
     backdrop-filter: blur(8px);
     border: 1px solid rgba(255,255,255,0.08);
     border-radius: var(--radius-md);
-    font-size: 12px; color: var(--accent-2); font-weight: 700;
+    font-size: 13px; color: var(--accent-2); font-weight: 700;
     white-space: nowrap;
   }
-  /* 玩家血条 左下 */
+  /* 玩家血条 左上 */
   .player-hud {
-    position: absolute; left: 14px; bottom: 200px;
+    position: absolute; left: 16px; top: 68px;
     z-index: 10; pointer-events: none;
-    display: flex; flex-direction: column; gap: 4px;
+    display: flex; flex-direction: column; gap: 5px;
   }
-  .player-hud .pname { font-size: 11px; color: var(--ok); font-weight: 700; }
+  .player-hud .pname { font-size: 12px; color: var(--ok); font-weight: 700; }
   .player-hud .php {
-    width: 130px; height: 8px;
+    width: 160px; height: 9px;
     background: rgba(0,0,0,0.4);
     border-radius: 5px; overflow: hidden;
     border: 1px solid rgba(255,255,255,0.08);
@@ -111,18 +133,20 @@
     background: linear-gradient(90deg, #51cf66, #37b24d, #2b8a3e);
     width: 100%; transition: width 0.18s ease;
   }
-  /* 控制区 */
+  /* 控制区（横屏：左右两列，左摇杆，右按钮组） */
   .controls {
     position: absolute; left: 0; right: 0; bottom: 0;
-    height: 200px;
+    height: 170px;
     z-index: 20;
     display: flex; justify-content: space-between; align-items: center;
-    padding: 0 24px 24px 24px;
+    padding: 0 28px 16px 28px;
+    pointer-events: none;
   }
+  .controls > * { pointer-events: auto; }
   /* 摇杆 */
   .joystick {
     position: relative;
-    width: 130px; height: 130px;
+    width: 140px; height: 140px;
     border-radius: 50%;
     background: var(--bg-panel);
     backdrop-filter: blur(10px);
@@ -133,8 +157,8 @@
   .joystick .stick {
     position: absolute;
     left: 50%; top: 50%;
-    width: 56px; height: 56px;
-    margin-left: -28px; margin-top: -28px;
+    width: 60px; height: 60px;
+    margin-left: -30px; margin-top: -30px;
     border-radius: 50%;
     background: radial-gradient(circle at 30% 30%, #ffd43b, #f08c00);
     box-shadow: 0 4px 14px rgba(0,0,0,0.4), inset 0 -3px 6px rgba(0,0,0,0.25);
@@ -143,17 +167,18 @@
   .joystick.active .stick {
     box-shadow: 0 4px 18px rgba(255, 212, 59, 0.5), inset 0 -3px 6px rgba(0,0,0,0.25);
   }
-  /* 按钮组 */
+  /* 按钮组（右手，竖直堆叠：射击上 / 跳跃下） */
   .buttons {
-    display: flex; gap: 18px; align-items: flex-end;
+    display: flex; flex-direction: column; gap: 18px; align-items: center;
   }
+  .btn-row { display: flex; gap: 20px; align-items: center; justify-content: flex-end; }
   .btn-action {
-    width: 84px; height: 84px;
+    width: 92px; height: 92px;
     border-radius: 50%;
     border: 2px solid rgba(255,255,255,0.14);
     background: radial-gradient(circle at 30% 30%, #ff8787, #fa5252 55%, #c92a2a);
     color: white;
-    font-weight: 800; font-size: 15px;
+    font-weight: 800; font-size: 16px;
     letter-spacing: 2px;
     box-shadow: 0 6px 18px rgba(250, 82, 82, 0.35), inset 0 -4px 8px rgba(0,0,0,0.3);
     display: flex; align-items: center; justify-content: center;
@@ -165,12 +190,12 @@
     box-shadow: 0 3px 10px rgba(250, 82, 82, 0.55), inset 0 -2px 5px rgba(0,0,0,0.35);
   }
   .btn-jump {
-    width: 68px; height: 68px;
+    width: 76px; height: 76px;
     border-radius: 50%;
     border: 2px solid rgba(255,255,255,0.14);
     background: radial-gradient(circle at 30% 30%, #74c0fc, #339af0 55%, #1864ab);
     color: white;
-    font-weight: 800; font-size: 13px;
+    font-weight: 800; font-size: 14px;
     box-shadow: 0 6px 16px rgba(51, 154, 240, 0.35), inset 0 -4px 8px rgba(0,0,0,0.3);
     display: flex; align-items: center; justify-content: center;
     touch-action: none;
@@ -183,9 +208,9 @@
   .hud .boss-name .phase-tag {
     display: inline-block;
     margin-left: 6px;
-    padding: 0 6px;
+    padding: 1px 7px;
     border-radius: 5px;
-    font-size: 10px;
+    font-size: 11px;
     background: rgba(255, 212, 59, 0.18);
     color: var(--accent-2);
     border: 1px solid rgba(255, 212, 59, 0.35);
@@ -203,16 +228,26 @@
     color: #74c0fc;
     border-color: rgba(116, 192, 252, 0.5);
   }
+  .hud .boss-name .stun-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 5px;
+    font-size: 11px;
+    background: rgba(180, 180, 220, 0.2);
+    color: #d0d0ff;
+    border: 1px solid rgba(200, 200, 255, 0.35);
+  }
   @keyframes phasePulse {
     from { box-shadow: 0 0 0 rgba(255,77,79,0); }
     to   { box-shadow: 0 0 10px rgba(255,77,79,0.55); }
   }
   /* 玩家血条增加爱心分段标记 */
   .player-hud .hearts {
-    display: flex; gap: 4px;
+    display: flex; gap: 5px;
   }
   .player-hud .heart {
-    width: 14px; height: 14px;
+    width: 16px; height: 16px;
     background: radial-gradient(circle at 30% 30%, #ff8787, #fa5252 60%, #c92a2a);
     clip-path: path('M7 12.5 C 2 9.5, -1 6, 2 3 C 3.5 1.5, 5.5 2, 7 4 C 8.5 2, 10.5 1.5, 12 3 C 15 6, 12 9.5, 7 12.5 Z');
     filter: drop-shadow(0 1px 0 rgba(0,0,0,0.3));
@@ -322,6 +357,14 @@
 </style>
 </head>
 <body>
+<div id="rotateHint">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 12a9 9 0 1 0 3-6.7"/>
+    <path d="M3 4v5h5"/>
+    <rect x="9" y="7" width="10" height="6" rx="2" transform="rotate(90 14 10)"/>
+  </svg>
+  请将手机横过来游玩<br>（Please rotate your device to landscape）
+</div>
 <div id="app">
   <div id="stage">
     <canvas id="game"></canvas>
@@ -330,7 +373,7 @@
     <div class="hud" id="hud" style="display:none;">
       <div class="boss-wrap">
         <div class="boss-name">
-          <span>⚡ <span id="bossName">肘击王</span><span class="phase-tag" id="phaseTag">一阶段</span></span>
+          <span>⚡ <span id="bossName">肘击王</span><span class="phase-tag" id="phaseTag">一阶段</span><span class="stun-tag" id="stunTag" style="display:none;">眩晕中</span></span>
           <span id="bossHpText">6 / 6</span>
         </div>
         <div class="boss-hp-bar"><div class="boss-hp-fill" id="bossHpFill"></div></div>
@@ -346,14 +389,18 @@
       <div class="php"><div class="php-fill" id="playerHpFill"></div></div>
     </div>
 
-    <!-- 控制区 -->
+    <!-- 控制区（横屏：左摇杆 · 右按钮竖直堆叠） -->
     <div class="controls" id="controls" style="display:none;">
       <div class="joystick" id="joystick">
         <div class="stick" id="stick"></div>
       </div>
       <div class="buttons">
-        <div class="btn-jump" id="btnJump">跳</div>
-        <div class="btn-action" id="btnFire">射击</div>
+        <div class="btn-row">
+          <div class="btn-action" id="btnFire">射击</div>
+        </div>
+        <div class="btn-row">
+          <div class="btn-jump" id="btnJump">跳</div>
+        </div>
       </div>
     </div>
 
@@ -361,19 +408,22 @@
     <div class="overlay" id="startOverlay">
       <div class="panel">
         <h1>起义军大战肘击王</h1>
-        <div class="sub">拿起你的枪，击败不可能被击败的肘击王！</div>
+        <div class="sub">拿起你的枪，击败不可能被击败的肘击王！（横屏适配 · APK可打包）</div>
         <div class="tips">
           🎮 <b>操作说明</b><br>
-          · 左下<b>摇杆</b>控制移动，右下<b>跳/射击</b>按钮<br>
+          · 左<b>摇杆</b>控制移动，右上<b>射击</b> + 右下<b>跳</b><br>
+          · 键盘：A/D 移动 / W或空格跳跃 / J射击<br>
+          🏛 <b>BOSS 站位规则</b><br>
+          · 肘击王 <b>固定在原地不动</b>，只有二阶段会<b>偶尔冲撞</b><br>
+          · 二阶段冲撞命中后，BOSS <b>短暂眩晕</b>（不会秒杀）<br>
           ⚠️ <b>死亡规则（游戏设计）</b><br>
-          · 一阶段：被肘击 <b>2 次即死</b><br>
-          · <b>触碰肘击王</b>下半身 → <b>立即秒杀</b><br>
+          · 一阶段：被肘击 <b>2 次即死</b>；BOSS 本身不再接触秒杀<br>
           · 二阶段：<b>任何一发肘击 → 一击必杀</b><br>
           💎 <b>BOSS 破血节奏</b><br>
           · 一阶段普通：<b>2 枪 = 1 格血</b><br>
           · 半血后进入<b>🛡防御模式</b>：<b>6 枪 = 1 格</b>，攻击更频繁<br>
           · 打完一阶段 → <b>血条瞬间回满</b>切换二阶段（zjw2 形象）<br>
-          · 二阶段：<b>5 枪 = 1 格血</b>，弹幕极猛
+          · 二阶段：<b>5 枪 = 1 格血</b>，弹幕极猛 + 偶尔冲撞
         </div>
         <button class="big-btn" id="startBtn">开 始 战 斗</button>
       </div>
@@ -406,19 +456,32 @@
   'use strict';
 
   // ---------- 常量 ----------
-  const LOGIC_W = 360;           // 逻辑分辨率宽
-  const LOGIC_H = 640;           // 逻辑分辨率高
-  const GROUND_Y = LOGIC_H - 110;// 地面Y（玩家脚部所站位置）
-  const GRAVITY = 0.55;
-  const PLAYER_MOVE_SPEED = 2.6;
-  const JUMP_VELOCITY = -10.5;
+  // 横屏逻辑分辨率 16:9（打包 APK 时全屏等比缩放）
+  const LOGIC_W = 960;           // 逻辑分辨率宽（横屏）
+  const LOGIC_H = 540;           // 逻辑分辨率高（横屏）
+  const GROUND_Y = LOGIC_H - 80; // 地面Y（玩家脚部所站位置）
+  const GRAVITY = 0.58;
+  const PLAYER_MOVE_SPEED = 3.4;
+  const JUMP_VELOCITY = -11.5;
   const PLAYER_MAX_HP = 2;       // 玩家血量 2（被肘击两次即死 = 游戏设计）
   const BOSS_P1_HP   = 6;        // 阶段1 BOSS 血量（6 大格）
   const BOSS_P2_HP   = 6;        // 阶段2 BOSS 血量（再 6 大格，回满）
-  const BULLET_SPEED = 7.5;
-  const ZJ_SPEED = 3.4;
-  const FIRE_COOLDOWN_MS = 220;
+  const BULLET_SPEED = 9.5;
+  const ZJ_SPEED = 4.3;
+  const FIRE_COOLDOWN_MS = 180;
   const PLAYER_INVINCIBLE_MS = 900;
+
+  // ------ 二阶段冲撞相关（BOSS=固定站桩，仅P2偶尔冲撞）------
+  // 冲撞冷却、速度、命中后眩晕时长
+  const P2_CHARGE = {
+    COOLDOWN_MS: [4200, 6500],   // 两次冲撞之间间隔
+    PREPARE_MS:  520,            // 蓄力预警时间（BOSS变红+冲刺线特效）
+    SPEED:       9.2,            // 冲撞速度（逻辑px/帧）
+    DISTANCE_PCT: 0.55,          // 最大横移占屏幕比例
+    STUN_MS:     1400,           // 命中玩家后 BOSS 眩晕时长
+    MISS_WAIT_MS:500,            // 冲出去没撞到的话稍作回正停顿
+  };
+  const CHARGE_STATE = { IDLE:'idle', PREPARE:'prepare', CHARGING:'charging', STUN:'stun', RECOVER:'recover' };
 
   // 阶段/模式配置（数值 = 游戏刻意设计的不平衡感）
   // phase：1 = 一阶段, 2 = 二阶段
@@ -434,15 +497,15 @@
   };
   // BOSS 攻击 CD：[min_ms, max_ms]
   const BOSS_ATTACK_CD = {
-    p1_normal:  [850, 1250],
-    p1_defense: [450,  760],   // 防御模式：攻击更频繁
-    p2:         [240,  420],   // 二阶段：攻击极端频繁
+    p1_normal:  [820, 1200],
+    p1_defense: [430,  740],   // 防御模式：攻击更频繁
+    p2:         [260,  440],   // 二阶段：攻击极端频繁（比P1+防还猛）
   };
-  // 肘击单次发射数量
+  // 肘击单次发射数量（横屏距离更远，扇形略放宽由后段控制）
   const BOSS_ATTACK_COUNT = {
-    p1_normal:  function(damageTaken){ return 1 + Math.floor(damageTaken/3); }, // 1 → 2
-    p1_defense: function(){ return 2 + Math.floor(Math.random()*2); },          // 2-3
-    p2:         function(){ return 3 + Math.floor(Math.random()*2); },          // 3-4
+    p1_normal:  function(damageTaken){ return 1 + Math.floor(damageTaken/3); },
+    p1_defense: function(){ return 2 + Math.floor(Math.random()*2); },
+    p2:         function(){ return 3 + Math.floor(Math.random()*2); },
   };
 
   // ---------- Canvas / DOM ----------
@@ -461,6 +524,7 @@
   const playerHpFill = document.getElementById('playerHpFill');
   const bossNameEl   = document.getElementById('bossName');
   const phaseTagEl   = document.getElementById('phaseTag');
+  const stunTagEl    = document.getElementById('stunTag');
   const waveTagEl    = document.getElementById('waveTag');
   const bossTicksEl  = document.getElementById('bossTicks');
   const playerHeartsEl = document.getElementById('playerHearts');
@@ -551,7 +615,7 @@
 
   // ---------- 实体 ----------
   const player = {
-    x: 40, y: GROUND_Y, w: 40, h: 80,
+    x: 80, y: GROUND_Y, w: 50, h: 96,
     vx: 0, vy: 0,
     onGround: true,
     hp: PLAYER_MAX_HP,
@@ -562,18 +626,31 @@
   };
 
   // BOSS：阶段/模式 + 血格内部命中计数器（每格需要多枪才破）
+  // 按新规则：BOSS 固定站桩（P1 完全不动，不追击）；P2 才会"偶尔冲撞"
   const boss = {
-    x: LOGIC_W - 90, y: 60, w: 70, h: 154,
+    // 站位：横屏偏右侧中央，占画面 1/3 到 2/3 处，保证固定视觉锚点
+    x: LOGIC_W * 0.70, y: 0, w: 110, h: 240, // 绘制尺寸（按 zjw1=100x220 等比放大）
+    homeX: 0, homeY: 0,                       // 站桩原点（进入阶段时保存）
     phase: 1,       // 1 or 2
     mode:  MODE.NORMAL,
     hpMax: BOSS_P1_HP,   // 当前阶段大格总数
     hp:    BOSS_P1_HP,   // 当前大格数（剩余）
     cellHits: 0,         // 当前血格已经命中的子弹数
     nextAttackAt: 0,
-    dir: -1,
+    dir: -1,             // 朝向：-1 向左（朝向玩家）
     flashUntil: 0,
     defenseTriggered: false, // P1半血防御标志
     transitionUntil: 0,      // 阶段切换动画截止
+    // ------- 二阶段冲撞状态机 -------
+    chargeState: CHARGE_STATE.IDLE,
+    chargeUntil: 0,          // PREPARE / STUN / RECOVER 的到期时间
+    chargeStartAt: 0,
+    chargeDir: -1,
+    chargeVX: 0,
+    chargeOriginX: 0,
+    chargeMaxDistance: 0,
+    chargeNextAt: 0,         // 下一次可发起冲撞的时间
+    chargeHitThisTime: false,// 本次冲撞是否已经命中玩家
   };
   const bullets = [];
   const zjAttacks = [];
@@ -613,7 +690,7 @@
 
   function resetGame(){
     const now = performance.now();
-    player.x = 40; player.y = GROUND_Y;
+    player.x = 90; player.y = GROUND_Y;
     player.vx = 0; player.vy = 0;
     player.onGround = true;
     player.hp = PLAYER_MAX_HP;
@@ -621,22 +698,31 @@
     player.lastFireAt = 0;
     player.invincibleUntil = now + 600;
     player.flashUntil = 0;
-    // BOSS 放在玩家右侧地面附近（与玩家同一高度层，触碰秒杀才有意义）
-    // 素材原始 zjw1.png = 100x220，比例 1:2.2，按绘制尺寸 w=70 则 h ≈ 154
-    const bossDrawH = 154;
-    boss.w = 70; boss.h = bossDrawH;
-    boss.x = LOGIC_W - boss.w - 10;
-    boss.y = GROUND_Y + 80 - bossDrawH; // 底部对齐地平线
+    // BOSS 固定在原地：横屏 70% 位置（靠右站立），底部对齐地平线
+    const bossDrawW = 110, bossDrawH = 240;
+    boss.w = bossDrawW; boss.h = bossDrawH;
+    boss.homeX = LOGIC_W * 0.70;
+    boss.homeY = GROUND_Y + 80 - bossDrawH; // 脚站地平线
+    boss.x = boss.homeX;
+    boss.y = boss.homeY;
     boss.phase = 1;
     boss.mode  = MODE.NORMAL;
     boss.hpMax = BOSS_P1_HP;
     boss.hp    = BOSS_P1_HP;
     boss.cellHits = 0;
     boss.nextAttackAt = now + 1400;
-    boss.dir = -1;     // 初始向左靠近玩家
+    boss.dir = -1;     // 向左面向玩家（玩家在左）
     boss.flashUntil = 0;
     boss.defenseTriggered = false;
     boss.transitionUntil = 0;
+    // 冲撞状态机重置
+    boss.chargeState = CHARGE_STATE.IDLE;
+    boss.chargeUntil = 0;
+    boss.chargeVX = 0;
+    boss.chargeOriginX = boss.homeX;
+    boss.chargeMaxDistance = LOGIC_W * P2_CHARGE.DISTANCE_PCT;
+    boss.chargeNextAt = 0;
+    boss.chargeHitThisTime = false;
     bullets.length = 0;
     zjAttacks.length = 0;
     particles.length = 0;
@@ -686,6 +772,14 @@
     // LV tag
     waveTagEl.textContent = boss.phase === 2 ? 'LV.2' : 'LV.1';
     waveTagEl.style.color = boss.phase === 2 ? '#ff8787' : 'var(--accent-2)';
+    // 眩晕标签显示
+    if (stunTagEl){
+      if (boss.chargeState === CHARGE_STATE.STUN){
+        stunTagEl.style.display = 'inline-block';
+      } else {
+        stunTagEl.style.display = 'none';
+      }
+    }
     // 玩家血条
     const pPct = Math.max(0, player.hp) / PLAYER_MAX_HP * 100;
     playerHpFill.style.width = pPct + '%';
@@ -886,6 +980,86 @@
     boss.nextAttackAt = now + rand(lo, hi);
   }
 
+  // ---------- 二阶段冲撞状态机 ----------
+  // 规则：只在 P2、非阶段切换、非其他攻击动画时才会发生；命中玩家后 BOSS 眩晕（不秒杀玩家）
+  function updateP2Charge(now){
+    const st = boss.chargeState;
+    switch(st){
+      case CHARGE_STATE.IDLE: {
+        if (now > boss.transitionUntil && now >= boss.chargeNextAt){
+          // 选择冲撞方向：朝玩家当前 x
+          const pcx = player.x + player.w/2;
+          const bcx = boss.x + boss.w/2;
+          const dir = pcx < bcx ? -1 : 1;
+          boss.chargeState = CHARGE_STATE.PREPARE;
+          boss.chargeUntil = now + P2_CHARGE.PREPARE_MS;
+          boss.chargeStartAt = now;
+          boss.chargeDir = dir;
+          boss.chargeOriginX = boss.x;
+          boss.chargeVX = dir * P2_CHARGE.SPEED;
+          boss.chargeHitThisTime = false;
+          // 蓄力特效粒子
+          for (let i=0;i<10;i++){
+            spawnParticles(boss.x + boss.w/2 + dir*boss.w*0.45,
+                           boss.y + boss.h*0.55,
+                           '#ff006e', 1, 1.4);
+          }
+          showBanner('⚠️ 冲撞预警！', '#ff006e', 450);
+        }
+        break;
+      }
+      case CHARGE_STATE.PREPARE: {
+        // 原地抖动蓄力（不动位）
+        boss.x = boss.chargeOriginX + Math.sin(now/22)*2.2;
+        if (now >= boss.chargeUntil){
+          boss.chargeState = CHARGE_STATE.CHARGING;
+          boss.chargeVX = boss.chargeDir * P2_CHARGE.SPEED;
+          // 冲撞起手粒子爆发
+          spawnParticles(boss.x + boss.w/2, boss.y + boss.h*0.7,
+                         '#ffbe0b', 20, 4.2);
+        }
+        break;
+      }
+      case CHARGE_STATE.CHARGING: {
+        boss.x += boss.chargeVX;
+        // 越界或到达最大距离 → 冲撞结束（未命中）
+        const traveled = Math.abs(boss.x - boss.chargeOriginX);
+        const hitEdge =
+             (boss.chargeDir === -1 && boss.x <= 4)
+          || (boss.chargeDir ===  1 && boss.x + boss.w >= LOGIC_W - 4)
+          || traveled >= boss.chargeMaxDistance;
+        if (hitEdge){
+          boss.chargeVX = 0;
+          boss.chargeState = CHARGE_STATE.RECOVER;
+          boss.chargeUntil = now + P2_CHARGE.MISS_WAIT_MS;
+        }
+        break;
+      }
+      case CHARGE_STATE.STUN: {
+        // 眩晕中：BOSS 不动，头顶转星（由渲染层处理），到期进入回正
+        if (now >= boss.chargeUntil){
+          boss.chargeState = CHARGE_STATE.RECOVER;
+          boss.chargeUntil = now + P2_CHARGE.MISS_WAIT_MS;
+        }
+        break;
+      }
+      case CHARGE_STATE.RECOVER: {
+        // 平滑走回原点（homeX），再进入 IDLE 并重置下一次冲撞时间
+        const dx = boss.homeX - boss.x;
+        const step = Math.sign(dx) * Math.min(Math.abs(dx), P2_CHARGE.SPEED * 0.35);
+        boss.x += step;
+        if (Math.abs(boss.x - boss.homeX) < 0.6){
+          boss.x = boss.homeX;
+          boss.chargeState = CHARGE_STATE.IDLE;
+          boss.chargeVX = 0;
+          const [lo, hi] = P2_CHARGE.COOLDOWN_MS;
+          boss.chargeNextAt = now + rand(lo, hi);
+        }
+        break;
+      }
+    }
+  }
+
   // BOSS 阶段切换：P1 死亡 → 进入 P2
   function enterPhase2(now){
     boss.phase = 2;
@@ -896,8 +1070,20 @@
     boss.defenseTriggered = false;
     boss.nextAttackAt = now + 900;  // 短暂喘息后猛攻
     boss.transitionUntil = now + 1400;
+    // 回到站桩原点（二阶段形象 + 原地偶尔冲撞）
+    boss.x = boss.homeX;
+    boss.y = boss.homeY;
+    boss.dir = -1;
+    // 重置冲撞状态机（P2 才启用，第一次冲撞在 3s 后）
+    boss.chargeState = CHARGE_STATE.IDLE;
+    boss.chargeUntil = 0;
+    boss.chargeVX = 0;
+    boss.chargeOriginX = boss.homeX;
+    boss.chargeMaxDistance = LOGIC_W * P2_CHARGE.DISTANCE_PCT;
+    boss.chargeNextAt = now + 3000 + rand(0, 1500);
+    boss.chargeHitThisTime = false;
     buildBossTicks(BOSS_P2_HP);
-    showBanner('🔥 肘击王觉醒 · 二阶段', '#ff6b6b', 2000);
+    showBanner('🔥 肘击王觉醒 · 二阶段（会冲撞！）', '#ff6b6b', 2200);
     shakeStage();
     // 爆发粒子
     for (let i=0;i<3;i++){
@@ -950,25 +1136,33 @@
 
     if (input.fire) playerFire(now);
 
-    // BOSS 左右移动：追踪玩家方向（玩家靠左BOSS就左，玩家靠右BOSS就右）
-    // 阶段2移动更快，增加"必须保持距离"的难度
-    const nowU = now;
-    const chaseEvery = boss.phase === 2 ? 150 : 300;
-    if (!boss._nextDirCheck || nowU >= boss._nextDirCheck){
-      boss._nextDirCheck = nowU + chaseEvery + rand(0, 120);
-      const playerCx = player.x + player.w/2;
-      const bossCx   = boss.x + boss.w/2;
-      // 在小范围内就朝玩家走，若已经很近（<30像素）就停一下
-      if (Math.abs(playerCx - bossCx) < 28) boss.dir = 0;
-      else boss.dir = playerCx < bossCx ? -1 : 1;
+    // ========================================================
+    // BOSS 行为（按新规则）：
+    //   · 一阶段：固定站桩不动（不移位、不追踪）
+    //   · 二阶段：大部分时间站桩，偶尔蓄力→冲撞→(命中→BOSS眩晕 或 未命中→回正)
+    //   · 阶段切换 / 眩晕 / 蓄力期间不发射肘击弹幕
+    // ========================================================
+    const canShoot =
+         now > boss.transitionUntil
+      && boss.chargeState !== CHARGE_STATE.PREPARE
+      && boss.chargeState !== CHARGE_STATE.CHARGING
+      && boss.chargeState !== CHARGE_STATE.STUN;
+
+    // 朝向（站桩时保持面向玩家）
+    boss.dir = (player.x + player.w/2) < (boss.x + boss.w/2) ? -1 : 1;
+
+    // --- 二阶段冲撞状态机 ---
+    if (boss.phase === 2){
+      updateP2Charge(now);
     }
-    const moveSpeed = boss.phase === 2 ? 1.15 : 0.55;
-    boss.x += boss.dir * moveSpeed;
-    // 舞台边界兜底（避免越出）
-    if (boss.x < 80) { boss.x = 80; boss.dir = 1; }
-    if (boss.x > LOGIC_W - boss.w - 6) { boss.x = LOGIC_W - boss.w - 6; boss.dir = -1; }
-    // 阶段切换期间暂停攻击（有喘息）
-    if (now >= boss.nextAttackAt && now > boss.transitionUntil) bossAttack(now);
+
+    // --- 保持站桩（P1 或 P2 非冲撞状态强制贴回 homeX/Y；避免冲撞回正漂移）---
+    if (boss.chargeState === CHARGE_STATE.IDLE){
+      boss.x = boss.homeX;
+      boss.y = boss.homeY;
+    }
+
+    if (canShoot && now >= boss.nextAttackAt) bossAttack(now);
 
     // ===== 玩家子弹命中 BOSS（多枪=1血机制）=====
     const bossBox = { x: boss.x+6, y: boss.y+6, w: boss.w-12, h: boss.h-12 };
@@ -1018,13 +1212,38 @@
       }
     }
 
-    // ===== 玩家触碰 BOSS → 秒杀（游戏设计：任何身体部位重叠即死）=====
+    // ===== 玩家/BOSS 身体接触（不再触碰秒杀）=====
+    // 规则：普通接触只是"被 BOSS 轻微推开"；只有 P2 的冲撞（CHARGING）会造成玩家 1 点伤害（不秒杀）并使 BOSS 眩晕
     if (now > boss.transitionUntil && now > player.invincibleUntil){
-      const touchBox = { x: boss.x+4, y: boss.y+12, w: boss.w-8, h: boss.h-14 };
-      const pBox = { x: player.x+6, y: player.y+10, w: player.w-12, h: player.h-18 };
-      if (rectHit(touchBox, pBox)){
-        const died = damagePlayer(now, true, '触碰肘击王被秒杀');
-        if (died) return;
+      const bodyBox = { x: boss.x+8, y: boss.y+20, w: boss.w-16, h: boss.h-24 };
+      const pBox = { x: player.x+6, y: player.y+12, w: player.w-12, h: player.h-20 };
+      if (rectHit(bodyBox, pBox)){
+        // 冲撞过程中首次命中 → 玩家扣 1 血（不秒杀）+ BOSS 进入眩晕
+        if (boss.phase === 2 && boss.chargeState === CHARGE_STATE.CHARGING && !boss.chargeHitThisTime){
+          boss.chargeHitThisTime = true;
+          const died = damagePlayer(now, false, '被二阶段肘击王冲撞撞到');
+          // 进入眩晕
+          boss.chargeState = CHARGE_STATE.STUN;
+          boss.chargeUntil = now + P2_CHARGE.STUN_MS;
+          boss.chargeVX = 0;
+          spawnParticles(boss.x+boss.w/2, boss.y+boss.h*0.45, '#aab0ff', 22, 3.6);
+          spawnParticles(player.x+player.w/2, player.y+player.h/2, '#ffd86b', 18, 3.0);
+          showBanner('💫 BOSS 冲撞命中，短暂眩晕！', '#d0d0ff', 900);
+          updateHUD();
+          if (died) return;
+        } else {
+          // 普通身体重叠：把玩家轻微往外推，不扣血也不秒杀
+          const overlap = (player.x + player.w) - boss.x;
+          if (overlap > 0 && player.x < boss.x){
+            player.x -= Math.min(overlap + 2, 6);
+          } else {
+            const overlap2 = (boss.x + boss.w) - player.x;
+            if (overlap2 > 0) player.x += Math.min(overlap2 + 2, 6);
+          }
+          // 舞台越界兜底
+          if (player.x < 6) player.x = 6;
+          if (player.x + player.w > LOGIC_W - 6) player.x = LOGIC_W - 6 - player.w;
+        }
       }
     }
 
@@ -1285,12 +1504,83 @@
       ctx.restore();
     }
     drawImgCentered(bossImg, boss.x + boss.w/2, boss.y + boss.h/2,
-      cfg.isP2 ? boss.w*1.1 : boss.w,
-      cfg.isP2 ? boss.h*1.1 : boss.h,
+      cfg.isP2 ? boss.w*1.08 : boss.w,
+      cfg.isP2 ? boss.h*1.08 : boss.h,
       false, 0, bossFlash);
+    // ---- 蓄力预警：红色箭头 + 冲刺方向虚线 ----
+    if (boss.chargeState === CHARGE_STATE.PREPARE){
+      ctx.save();
+      const cx = boss.x + boss.w/2;
+      const cy = boss.y + boss.h*0.55;
+      ctx.strokeStyle = 'rgba(255,0,90,0.75)';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 8]);
+      ctx.lineDashOffset = -now/40;
+      const endX = cx + boss.chargeDir * boss.chargeMaxDistance;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(endX, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 箭头
+      const ax = endX, ay = cy;
+      ctx.fillStyle = 'rgba(255,0,90,0.9)';
+      ctx.beginPath();
+      ctx.moveTo(ax, ay);
+      ctx.lineTo(ax - boss.chargeDir*18, ay - 10);
+      ctx.lineTo(ax - boss.chargeDir*18, ay + 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    // ---- 眩晕：头顶小星星旋转 ----
+    if (boss.chargeState === CHARGE_STATE.STUN){
+      ctx.save();
+      const cx = boss.x + boss.w/2;
+      const cy = boss.y - 18;
+      for (let i=0;i<3;i++){
+        const ang = now/400 + (i*Math.PI*2/3);
+        const sx = cx + Math.cos(ang)*26;
+        const sy = cy + Math.sin(ang)*8;
+        const rot = now/200 + i;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(rot);
+        ctx.fillStyle = i%2? '#ffd43b':'#aab0ff';
+        ctx.beginPath();
+        for (let k=0;k<5;k++){
+          const a = k * Math.PI*2/5 - Math.PI/2;
+          const a2 = a + Math.PI/5;
+          const r1 = 6, r2 = 2.5;
+          ctx.lineTo(Math.cos(a)*r1, Math.sin(a)*r1);
+          ctx.lineTo(Math.cos(a2)*r2, Math.sin(a2)*r2);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+    // ---- 冲撞：身体前方气流尾迹 ----
+    if (boss.chargeState === CHARGE_STATE.CHARGING){
+      ctx.save();
+      ctx.globalAlpha = 0.6;
+      for (let i=0;i<4;i++){
+        const tx = boss.x + boss.w/2 - boss.chargeDir * (10 + i*18);
+        const ty = boss.y + boss.h*0.5 + Math.sin(now/60 + i)*4;
+        const g = ctx.createRadialGradient(tx, ty, 1, tx, ty, 22);
+        g.addColorStop(0, 'rgba(255,200,120,0.9)');
+        g.addColorStop(1, 'rgba(255,200,120,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(tx, ty, 22, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
     // BOSS 头顶细分血条（Canvas 绘制，替代 zjwxt*.png）
-    const bw = 118, bh = 8;
-    drawBossMiniHp(boss.x + boss.w/2 - bw/2, boss.y - 20, bw, bh);
+    const bw = 180, bh = 9;
+    drawBossMiniHp(boss.x + boss.w/2 - bw/2, boss.y - 24, bw, bh);
 
     // 玩家（无敌闪烁）
     const invincible = now < player.invincibleUntil;
@@ -1302,8 +1592,8 @@
         player.w, player.h, player.facing < 0, 0, pFlash);
     }
     // 玩家头顶血条（Canvas 绘制，替代 qyjxt*.png）
-    const pw = 48, ph = 7;
-    drawPlayerMiniHp(player.x + player.w/2 - pw/2, player.y - 16, pw, ph);
+    const pw = 60, ph = 7;
+    drawPlayerMiniHp(player.x + player.w/2 - pw/2, player.y - 18, pw, ph);
 
     // 子弹（纯 Canvas 绘制，替代 zd1/zd2.png）
     for (const b of bullets) drawBullet(b);
@@ -1380,6 +1670,8 @@
         desc = '🔥 二阶段的肘击一击必杀！不要被任何一发肘击碰到！';
       } else if (reason === '被肘击命中'){
         desc = '肘击打中了你！两次肘击就是你的极限！';
+      } else if (reason && reason.indexOf('冲撞撞到') >= 0){
+        desc = '💫 你被二阶段冲撞撞到后又被肘击干掉了！（冲撞只扣 1 血，不会单独秒杀）';
       }
       endSub.textContent = desc;
     }
@@ -1400,6 +1692,7 @@
 
   // 调试用全局 API（不影响游戏体验，可安全保留）
   window.__game = {
+    LOGIC_W: LOGIC_W, LOGIC_H: LOGIC_H, GROUND_Y: GROUND_Y,
     get state(){ return gameState; },
     get input(){ return input; },
     setFire(v){ input.fire = !!v; if(input.fire){ btnFire.classList.add('pressed'); } else { btnFire.classList.remove('pressed'); } },
@@ -1411,8 +1704,56 @@
       hp: boss.hp, hpMax: boss.hpMax, cellHits: boss.cellHits,
       hitsPerHp: currentBossCfg().hitsPerHp,
       x: boss.x, y: boss.y, w: boss.w, h: boss.h,
+      homeX: boss.homeX, homeY: boss.homeY,
       defenseTriggered: boss.defenseTriggered,
+      chargeState: boss.chargeState,
+      chargeDir: boss.chargeDir,
+      chargeHitThisTime: boss.chargeHitThisTime,
+      chargeUntil: boss.chargeUntil,
+      dir: boss.dir,
     };},
+  // 调试加速：把 BOSS 推入某阶段（仅用于测试）
+    __forcePhase(p){
+      if (p===1){ resetGame(); return; }
+      // 若玩家已死 -> 先重置，再进入 P2 保持可玩
+      if (player.hp <= 0 || gameState !== STATE.PLAY) resetGame();
+      enterPhase2(performance.now());
+      updateHUD();
+    },
+    // 调试加速：在屏幕空间把玩家瞬移到 (lx,ly) 逻辑坐标并保持在地面，补满血，取消死亡
+    __warpPlayer(lx, ly){
+      gameState = STATE.PLAY;
+      endOverlay.classList.add('hidden');
+      hud.style.display = 'flex';
+      playerHud.style.display = 'flex';
+      controls.style.display = 'flex';
+      const now = performance.now();
+      player.hp = PLAYER_MAX_HP;
+      player.invincibleUntil = now + 600;
+      player.flashUntil = 0;
+      player.x = Math.max(6, Math.min(LOGIC_W - player.w - 6, lx - player.w/2));
+      player.y = (ly||0) > 0 ? Math.min(GROUND_Y, ly) : GROUND_Y;
+      player.vx = 0; player.vy = 0;
+      updateHUD();
+    },
+    // 调试加速：发射 N 发"必中"子弹（忽略玩家方向，从屏幕左面向BOSS画直线）
+    __hitBoss(n){
+      const now = performance.now();
+      for (let i=0;i<(n|0);i++){
+        const bx = 10, by = boss.y + boss.h/2;
+        const dx = (boss.x + boss.w/2) - bx;
+        const dy = (boss.y + boss.h/2 + rand(-4,4)) - by;
+        const L = Math.hypot(dx,dy) || 1;
+        const kind = Math.random() < 0.5 ? 'A' : 'B';
+        bullets.push({
+          x: bx, y: by,
+          w: kind==='A'?4:5, h: kind==='A'?4:5,
+          vx: dx/L * BULLET_SPEED * 1.6,
+          vy: dy/L * BULLET_SPEED * 1.6,
+          kind, born: now + i*4,
+        });
+      }
+    },
     get bulletsCount(){ return bullets.length; },
     get zjCount(){ return zjAttacks.length; },
     get hitCount(){ return hitCount; },
