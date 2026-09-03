@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="screen-orientation" content="portrait">
+<meta name="theme-color" content="#0a0a14">
+<title>起义军大战肘击王</title>
+<style>
+  :root {
+    --bg-dark: #0a0a14;
+    --bg-panel: rgba(20, 22, 40, 0.72);
+    --accent: #ff4d4f;
+    --accent-2: #ffd43b;
+    --ok: #51cf66;
+    --text: #f8f9fa;
+    --text-dim: #adb5bd;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --shadow-glow: 0 0 20px rgba(255, 77, 79, 0.35);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: var(--bg-dark);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+  #app {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #stage {
+    position: relative;
+    width: 100vw; height: 100vh;
+    max-width: 100vw; max-height: 100vh;
+    background: linear-gradient(180deg, #1a1530 0%, #2a1a3a 40%, #3a1e2e 100%);
+    overflow: hidden;
+  }
+  canvas#game {
+    position: absolute; left: 0; top: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  /* HUD 顶部状态 */
+  .hud {
+    position: absolute; left: 0; right: 0; top: 0;
+    padding: 12px 14px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .hud .boss-wrap {
+    flex: 1; max-width: 78%;
+    background: var(--bg-panel);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-md);
+    padding: 6px 10px;
+  }
+  .hud .boss-name {
+    font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: 1px;
+    margin-bottom: 4px;
+    display: flex; justify-content: space-between;
+  }
+  .hud .boss-name span:last-child { color: var(--text-dim); font-weight: 500; }
+  .hud .boss-hp-bar {
+    width: 100%; height: 10px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 6px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .hud .boss-hp-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff6b6b, #fa5252, #c92a2a);
+    width: 100%;
+    transition: width 0.2s ease;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.2);
+  }
+  .hud .wave-tag {
+    margin-left: 10px;
+    padding: 4px 10px;
+    background: var(--bg-panel);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius-md);
+    font-size: 12px; color: var(--accent-2); font-weight: 700;
+    white-space: nowrap;
+  }
+  /* 玩家血条 左下 */
+  .player-hud {
+    position: absolute; left: 14px; bottom: 200px;
+    z-index: 10; pointer-events: none;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .player-hud .pname { font-size: 11px; color: var(--ok); font-weight: 700; }
+  .player-hud .php {
+    width: 130px; height: 8px;
+    background: rgba(0,0,0,0.4);
+    border-radius: 5px; overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .player-hud .php-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #51cf66, #37b24d, #2b8a3e);
+    width: 100%; transition: width 0.18s ease;
+  }
+  /* 控制区 */
+  .controls {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 200px;
+    z-index: 20;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 24px 24px 24px;
+  }
+  /* 摇杆 */
+  .joystick {
+    position: relative;
+    width: 130px; height: 130px;
+    border-radius: 50%;
+    background: var(--bg-panel);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.1);
+    touch-action: none;
+  }
+  .joystick .stick {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 56px; height: 56px;
+    margin-left: -28px; margin-top: -28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #ffd43b, #f08c00);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4), inset 0 -3px 6px rgba(0,0,0,0.25);
+    transition: transform 0.05s ease-out;
+  }
+  .joystick.active .stick {
+    box-shadow: 0 4px 18px rgba(255, 212, 59, 0.5), inset 0 -3px 6px rgba(0,0,0,0.25);
+  }
+  /* 按钮组 */
+  .buttons {
+    display: flex; gap: 18px; align-items: flex-end;
+  }
+  .btn-action {
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.14);
+    background: radial-gradient(circle at 30% 30%, #ff8787, #fa5252 55%, #c92a2a);
+    color: white;
+    font-weight: 800; font-size: 15px;
+    letter-spacing: 2px;
+    box-shadow: 0 6px 18px rgba(250, 82, 82, 0.35), inset 0 -4px 8px rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .btn-action:active, .btn-action.pressed {
+    transform: scale(0.92);
+    box-shadow: 0 3px 10px rgba(250, 82, 82, 0.55), inset 0 -2px 5px rgba(0,0,0,0.35);
+  }
+  .btn-jump {
+    width: 68px; height: 68px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.14);
+    background: radial-gradient(circle at 30% 30%, #74c0fc, #339af0 55%, #1864ab);
+    color: white;
+    font-weight: 800; font-size: 13px;
+    box-shadow: 0 6px 16px rgba(51, 154, 240, 0.35), inset 0 -4px 8px rgba(0,0,0,0.3);
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none;
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .btn-jump:active, .btn-jump.pressed {
+    transform: scale(0.92);
+  }
+  /* 开始/结束 遮罩 */
+  .overlay {
+    position: absolute; inset: 0;
+    z-index: 50;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    background: rgba(10, 10, 20, 0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    padding: 24px;
+  }
+  .overlay.hidden { display: none; }
+  .panel {
+    width: 100%; max-width: 340px;
+    background: var(--bg-panel);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .panel h1 {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    background: linear-gradient(90deg, #ffd43b, #fa5252);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    letter-spacing: 2px;
+    font-weight: 900;
+  }
+  .panel h2 {
+    margin: 0 0 8px 0; font-size: 22px; font-weight: 900; letter-spacing: 2px;
+  }
+  .panel .win { color: var(--ok); }
+  .panel .lose { color: var(--accent); }
+  .panel .sub {
+    color: var(--text-dim); font-size: 13px; line-height: 1.6;
+    margin: 10px 0 18px 0;
+  }
+  .panel .stats {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    margin: 10px 0 20px 0;
+  }
+  .panel .stat {
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 8px;
+  }
+  .panel .stat .lbl { font-size: 11px; color: var(--text-dim); }
+  .panel .stat .val { font-size: 18px; font-weight: 800; color: var(--accent-2); margin-top: 2px; }
+  .big-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: linear-gradient(135deg, #ff6b6b, #fa5252);
+    color: white;
+    font-size: 17px; font-weight: 800; letter-spacing: 2px;
+    box-shadow: 0 6px 18px rgba(250, 82, 82, 0.4);
+    cursor: pointer;
+  }
+  .big-btn:active { transform: scale(0.97); }
+  .tips {
+    margin-top: 14px;
+    font-size: 12px; color: var(--text-dim); line-height: 1.7;
+    text-align: left;
+    background: rgba(0,0,0,0.2);
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+  .tips b { color: var(--accent-2); }
+  .end-img-wrap {
+    width: 100%; max-width: 340px;
+    margin-bottom: 16px;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  }
+  .end-img-wrap img { width: 100%; display: block; }
+  /* 屏幕震动 */
+  .shake { animation: shake 0.35s ease; }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    20% { transform: translate(-6px, 4px); }
+    40% { transform: translate(5px, -5px); }
+    60% { transform: translate(-4px, -3px); }
+    80% { transform: translate(4px, 5px); }
+  }
+  /* 受击闪烁 */
+  .flash { animation: flash 0.18s ease; }
+  @keyframes flash {
+    0%,100% { filter: brightness(1); }
+    50% { filter: brightness(2) saturate(1.5); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="game"></canvas>
+
+    <!-- HUD -->
+    <div class="hud" id="hud" style="display:none;">
+      <div class="boss-wrap">
+        <div class="boss-name">
+          <span>⚡ 肘击王 BOSS</span>
+          <span id="bossHpText">6 / 6</span>
+        </div>
+        <div class="boss-hp-bar"><div class="boss-hp-fill" id="bossHpFill"></div></div>
+      </div>
+      <div class="wave-tag" id="waveTag">LV.1</div>
+    </div>
+
+    <div class="player-hud" id="playerHud" style="display:none;">
+      <div class="pname">✊ 起义军</div>
+      <div class="php"><div class="php-fill" id="playerHpFill"></div></div>
+    </div>
+
+    <!-- 控制区 -->
+    <div class="controls" id="controls" style="display:none;">
+      <div class="joystick" id="joystick">
+        <div class="stick" id="stick"></div>
+      </div>
+      <div class="buttons">
+        <div class="btn-jump" id="btnJump">跳</div>
+        <div class="btn-action" id="btnFire">射击</div>
+      </div>
+    </div>
+
+    <!-- 开始界面 -->
+    <div class="overlay" id="startOverlay">
+      <div class="panel">
+        <h1>起义军大战肘击王</h1>
+        <div class="sub">拿起你的枪，击败不可能被击败的肘击王！</div>
+        <div class="tips">
+          🎮 <b>操作说明</b><br>
+          · 左下<b>摇杆</b>控制移动<br>
+          · 右下蓝色<b>跳</b>按钮跳跃<br>
+          · 右下红色<b>射击</b>按钮开火<br>
+          · 肘击王会不断发射<b>肘击</b>，小心躲避！
+        </div>
+        <button class="big-btn" id="startBtn">开 始 战 斗</button>
+      </div>
+    </div>
+
+    <!-- 结束界面 -->
+    <div class="overlay hidden" id="endOverlay">
+      <div class="end-img-wrap">
+        <img id="endImg" src="jsjm.png" alt="结束界面">
+      </div>
+      <div class="panel">
+        <h2 id="endTitle" class="lose">战 斗 失 败</h2>
+        <div class="sub" id="endSub">肘击王的力量太强大了…</div>
+        <div class="stats">
+          <div class="stat"><div class="lbl">存活时间</div><div class="val" id="statTime">0s</div></div>
+          <div class="stat"><div class="lbl">命中子弹</div><div class="val" id="statHit">0</div></div>
+        </div>
+        <button class="big-btn" id="restartBtn">再 战 一 局</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+/* =========================================================
+   起义军大战肘击王 - H5 移动端射击游戏
+   竖屏适配 · 触控摇杆+按钮 · Canvas 渲染
+========================================================= */
+(function(){
+  'use strict';
+
+  // ---------- 常量 ----------
+  const LOGIC_W = 360;           // 逻辑分辨率宽
+  const LOGIC_H = 640;           // 逻辑分辨率高
+  const GROUND_Y = LOGIC_H - 110;// 地面Y（玩家脚部所站位置）
+  const GRAVITY = 0.55;
+  const PLAYER_MOVE_SPEED = 2.6;
+  const JUMP_VELOCITY = -10.5;
+  const PLAYER_MAX_HP = 2;       // 玩家血量 2（满血 / 1 / 0 三档血条）
+  const BOSS_MAX_HP = 6;         // BOSS血量 6（对应 6 张血条图）
+  const BULLET_SPEED = 7.5;      // 玩家子弹速度（向上）
+  const ZJ_SPEED = 3.4;          // 肘击速度（向下，带水平）
+  const FIRE_COOLDOWN_MS = 220;  // 射击冷却
+  const BOSS_ATTACK_CD_MIN = 550;
+  const BOSS_ATTACK_CD_MAX = 1000;
+  const PLAYER_INVINCIBLE_MS = 900;
+
+  // ---------- Canvas / DOM ----------
+  const stage   = document.getElementById('stage');
+  const canvas  = document.getElementById('game');
+  const ctx     = canvas.getContext('2d');
+  const hud     = document.getElementById('hud');
+  const playerHud = document.getElementById('playerHud');
+  const controls = document.getElementById('controls');
+  const startOverlay = document.getElementById('startOverlay');
+  const endOverlay   = document.getElementById('endOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const bossHpFill = document.getElementById('bossHpFill');
+  const bossHpText = document.getElementById('bossHpText');
+  const playerHpFill = document.getElementById('playerHpFill');
+  const endTitle = document.getElementById('endTitle');
+  const endSub   = document.getElementById('endSub');
+  const statTime = document.getElementById('statTime');
+  const statHit  = document.getElementById('statHit');
+
+  let SCALE = 1;    // 逻辑->屏幕 缩放
+  let OFF_X = 0;    // 画布偏移（黑边补偿）
+  let OFF_Y = 0;
+
+  function resizeCanvas(){
+    const vw = stage.clientWidth;
+    const vh = stage.clientHeight;
+    const sx = vw / LOGIC_W;
+    const sy = vh / LOGIC_H;
+    SCALE = Math.min(sx, sy);
+    const cw = LOGIC_W * SCALE;
+    const ch = LOGIC_H * SCALE;
+    OFF_X = (vw - cw) / 2;
+    OFF_Y = (vh - ch) / 2;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.style.width  = cw + 'px';
+    canvas.style.height = ch + 'px';
+    canvas.style.left   = OFF_X + 'px';
+    canvas.style.top    = OFF_Y + 'px';
+    canvas.width  = Math.floor(LOGIC_W * dpr);
+    canvas.height = Math.floor(LOGIC_H * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+  }
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', resizeCanvas);
+
+  // ---------- 资源加载 ----------
+  const ASSETS = {
+    qyj: 'qyj.png',
+    zjw: 'zjw1.png',
+    zd1: 'zd1.png',
+    zd2: 'zd2.png',
+    zj:  'zj.png',
+    qyjxt:   'qyjxt.png',
+    qyjxt1:  'qyjxt-1.png',
+    qyjxt2:  'qyjxt-2.png',
+    zjwxt:   'zjwxt.png',
+    zjwxt1:  'zjwxt-1.png',
+    zjwxt2:  'zjwxt-2.png',
+    zjwxt3:  'zjwxt-3.png',
+    zjwxt4:  'zjwxt-4.png',
+    zjwxt5:  'zjwxt-5.png',
+    jsjm:    'jsjm.png'
+  };
+  const imgCache = {};
+  function loadAssets(){
+    return Promise.all(Object.keys(ASSETS).map(k=>new Promise(res=>{
+      const img = new Image();
+      img.onload = ()=>{ imgCache[k]=img; res(); };
+      img.onerror = ()=>{ imgCache[k]=null; res(); };
+      img.src = ASSETS[k];
+    })));
+  }
+
+  // ---------- 游戏状态 ----------
+  const STATE = { MENU:'menu', PLAY:'play', WIN:'win', LOSE:'lose' };
+  let gameState = STATE.MENU;
+  let lastT = 0;
+  let gameStartTime = 0;
+  let hitCount = 0;
+
+  // ---------- 实体 ----------
+  const player = {
+    x: 40, y: GROUND_Y, w: 40, h: 80,
+    vx: 0, vy: 0,
+    onGround: true,
+    hp: PLAYER_MAX_HP,
+    facing: 1,      // 1右 -1左（玩家朝右开火）
+    lastFireAt: 0,
+    invincibleUntil: 0,
+    flashUntil: 0,
+  };
+  const boss = {
+    x: LOGIC_W - 90, y: 60, w: 70, h: 154,
+    hp: BOSS_MAX_HP,
+    nextAttackAt: 0,
+    dir: -1,         // 左右轻微移动
+    flashUntil: 0,
+  };
+  const bullets = [];   // 玩家子弹
+  const zjAttacks = []; // 肘击（BOSS攻击）
+  const particles = []; // 爆炸粒子
+
+  function resetGame(){
+    const now = performance.now();
+    player.x = 40; player.y = GROUND_Y;
+    player.vx = 0; player.vy = 0;
+    player.onGround = true;
+    player.hp = PLAYER_MAX_HP;
+    player.facing = 1;
+    player.lastFireAt = 0;
+    player.invincibleUntil = now + 600; // 开局短暂无敌，防首帧秒杀
+    player.flashUntil = 0;
+    boss.x = LOGIC_W - 90; boss.y = 60;
+    boss.hp = BOSS_MAX_HP;
+    boss.nextAttackAt = now + 1400; // 开局延迟1.4s再攻击
+    boss.dir = -1;
+    boss.flashUntil = 0;
+    bullets.length = 0;
+    zjAttacks.length = 0;
+    particles.length = 0;
+    hitCount = 0;
+    gameStartTime = now;
+    updateHUD();
+  }
+
+  // ---------- HUD 更新 ----------
+  function updateHUD(){
+    const bossPct = Math.max(0, boss.hp) / BOSS_MAX_HP * 100;
+    bossHpFill.style.width = bossPct + '%';
+    bossHpText.textContent = Math.max(0, boss.hp) + ' / ' + BOSS_MAX_HP;
+    const pPct = Math.max(0, player.hp) / PLAYER_MAX_HP * 100;
+    playerHpFill.style.width = pPct + '%';
+  }
+
+  // ---------- 输入系统 ----------
+  const input = {
+    moveX: 0, moveY: 0,   // -1..1
+    fire: false,
+    jump: false,
+    jumpPressed: false,   // 单次触发
+  };
+  // 摇杆
+  const joystick = document.getElementById('joystick');
+  const stick = document.getElementById('stick');
+  let joyActive = false;
+  let joyId = null;
+  let joyCX = 0, joyCY = 0, joyR = 48;
+  function stickReset(){ stick.style.transform = 'translate(0,0)'; input.moveX = 0; input.moveY = 0; }
+  function getRectCenter(el){
+    const r = el.getBoundingClientRect();
+    return { cx: r.left + r.width/2, cy: r.top + r.height/2, r: r.width*0.37 };
+  }
+  function joyStart(e){
+    const t = e.changedTouches ? e.changedTouches[0] : e;
+    joyActive = true; joystick.classList.add('active');
+    const c = getRectCenter(joystick);
+    joyCX = c.cx; joyCY = c.cy; joyR = c.r;
+    joyId = e.changedTouches ? t.identifier : 'mouse';
+    joyMove(e);
+    e.preventDefault();
+  }
+  function joyMove(e){
+    if (!joyActive) return;
+    let t;
+    if (e.changedTouches){
+      for (const tt of e.changedTouches){ if (tt.identifier===joyId){ t=tt; break; } }
+      if (!t) return;
+    } else t = e;
+    const dx = t.clientX - joyCX;
+    const dy = t.clientY - joyCY;
+    const d = Math.hypot(dx, dy);
+    const clamped = Math.min(d, joyR);
+    const ang = Math.atan2(dy, dx);
+    const sx = Math.cos(ang) * clamped;
+    const sy = Math.sin(ang) * clamped;
+    stick.style.transform = `translate(${sx}px, ${sy}px)`;
+    input.moveX = (d===0)? 0 : (dx / d) * Math.min(1, d/joyR);
+    input.moveY = (d===0)? 0 : (dy / d) * Math.min(1, d/joyR);
+    // 阈值过滤微操
+    if (Math.abs(input.moveX) < 0.18) input.moveX = 0;
+    if (Math.abs(input.moveY) < 0.18) input.moveY = 0;
+    e.preventDefault();
+  }
+  function joyEnd(e){
+    if (!joyActive) return;
+    if (e.changedTouches){
+      let found = false;
+      for (const tt of e.changedTouches){ if (tt.identifier===joyId){ found=true; break; } }
+      if (!found) return;
+    }
+    joyActive = false; joystick.classList.remove('active'); joyId = null;
+    stickReset();
+  }
+  joystick.addEventListener('touchstart', joyStart, {passive:false});
+  joystick.addEventListener('touchmove',  joyMove,  {passive:false});
+  joystick.addEventListener('touchend',   joyEnd);
+  joystick.addEventListener('touchcancel',joyEnd);
+  joystick.addEventListener('mousedown',  joyStart);
+  window.addEventListener('mousemove',  (e)=>{ if (joyActive) joyMove(e); });
+  window.addEventListener('mouseup',    (e)=>{ if (joyActive) joyEnd(e); });
+
+  // 按钮
+  const btnFire = document.getElementById('btnFire');
+  const btnJump = document.getElementById('btnJump');
+  function bindHold(el, key){
+    const on = (e)=>{ input[key]=true; el.classList.add('pressed'); if (key==='jump') input.jumpPressed=true; e.preventDefault(); };
+    const off= (e)=>{ input[key]=false; el.classList.remove('pressed'); e.preventDefault(); };
+    el.addEventListener('touchstart', on, {passive:false});
+    el.addEventListener('touchend',   off);
+    el.addEventListener('touchcancel',off);
+    el.addEventListener('mousedown',  on);
+    el.addEventListener('mouseup',    off);
+    el.addEventListener('mouseleave', off);
+  }
+  bindHold(btnFire, 'fire');
+  bindHold(btnJump, 'jump');
+
+  // 键盘兼容（桌面调试）
+  const keyMap = {
+    ArrowLeft:-1, KeyA:-1, ArrowRight:1, KeyD:1,
+    ArrowUp:-1,  KeyW:-1, ArrowDown:1,  KeyS:1,
+  };
+  const keys = {};
+  window.addEventListener('keydown', (e)=>{
+    keys[e.code]=true;
+    if (e.code==='Space'){ input.fire = true; btnFire.classList.add('pressed'); }
+    if (e.code==='KeyJ' || e.code==='ShiftLeft'){ input.jump = true; input.jumpPressed = true; btnJump.classList.add('pressed'); }
+  });
+  window.addEventListener('keyup', (e)=>{
+    keys[e.code]=false;
+    if (e.code==='Space'){ input.fire = false; btnFire.classList.remove('pressed'); }
+    if (e.code==='KeyJ' || e.code==='ShiftLeft'){ input.jump = false; btnJump.classList.remove('pressed'); }
+  });
+  function pollKeyboard(){
+    let mx=0, my=0;
+    if (keys.ArrowLeft||keys.KeyA) mx-=1;
+    if (keys.ArrowRight||keys.KeyD) mx+=1;
+    if (keys.ArrowUp||keys.KeyW) my-=1;
+    if (keys.ArrowDown||keys.KeyS) my+=1;
+    if (mx||my){ input.moveX=mx; input.moveY=my; }
+  }
+
+  // 全局防滚动/缩放
+  document.addEventListener('touchmove', (e)=>{ if (e.cancelable) e.preventDefault(); }, {passive:false});
+  document.addEventListener('gesturestart', (e)=>e.preventDefault());
+  document.addEventListener('dblclick', (e)=>e.preventDefault());
+
+  // ---------- 工具 ----------
+  function rectHit(a, b){
+    return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
+  }
+  function rand(a,b){ return a + Math.random()*(b-a); }
+  function spawnParticles(x, y, color, n=10, speed=3){
+    for (let i=0;i<n;i++){
+      const a = Math.random()*Math.PI*2;
+      particles.push({
+        x, y,
+        vx: Math.cos(a)*rand(speed*0.3, speed),
+        vy: Math.sin(a)*rand(speed*0.3, speed),
+        life: rand(300, 650),
+        born: performance.now(),
+        size: rand(2, 4),
+        color
+      });
+    }
+  }
+  function shakeStage(){
+    stage.classList.remove('shake');
+    void stage.offsetWidth;
+    stage.classList.add('shake');
+  }
+
+  // ---------- 射击 / 攻击 ----------
+  function playerFire(now){
+    if (now - player.lastFireAt < FIRE_COOLDOWN_MS) return;
+    player.lastFireAt = now;
+    // 子弹从枪口（玩家右上）发射，向 BOSS 方向（右上为主）
+    const bx = player.x + player.w - 4;
+    const by = player.y + 18;
+    // 目标：BOSS 中心 + 随机偏移
+    const tx = boss.x + boss.w/2 + rand(-15, 15);
+    const ty = boss.y + boss.h/2 + rand(-25, 25);
+    const dx = tx - bx, dy = ty - by;
+    const L = Math.hypot(dx, dy) || 1;
+    const vx = dx/L * BULLET_SPEED;
+    const vy = dy/L * BULLET_SPEED;
+    const useZd2 = Math.random() < 0.5;
+    bullets.push({ x:bx, y:by, w:useZd2?5:4, h:useZd2?5:4, vx, vy, kind: useZd2?'zd2':'zd1' });
+  }
+
+  function bossAttack(now){
+    // 发射多枚"肘击"扇形攻击
+    const count = 1 + Math.floor((BOSS_MAX_HP - boss.hp) / 2); // 1 -> 2 -> 3
+    const originX = boss.x + boss.w * 0.15;
+    const originY = boss.y + boss.h - 10;
+    const targetX = player.x + player.w/2;
+    const targetY = player.y + player.h/2;
+    const baseAng = Math.atan2(targetY - originY, targetX - originX);
+    const spread = Math.PI / 7;
+    for (let i=0;i<count;i++){
+      const t = count===1 ? 0 : (i/(count-1) - 0.5);
+      const ang = baseAng + t * spread * 1.4 + rand(-0.05, 0.05);
+      zjAttacks.push({
+        x: originX, y: originY,
+        w: 22, h: 11,
+        vx: Math.cos(ang) * ZJ_SPEED,
+        vy: Math.sin(ang) * ZJ_SPEED,
+        spin: rand(-0.2, 0.2),
+        rot: 0
+      });
+    }
+    boss.nextAttackAt = now + rand(BOSS_ATTACK_CD_MIN, BOSS_ATTACK_CD_MAX) * (0.6 + boss.hp/BOSS_MAX_HP*0.6);
+  }
+
+  // ---------- 更新 ----------
+  function update(dt, now){
+    pollKeyboard();
+
+    // 玩家移动
+    player.vx = input.moveX * PLAYER_MOVE_SPEED;
+    if (Math.abs(player.vx) > 0.01) player.facing = player.vx > 0 ? 1 : -1;
+
+    // 跳跃
+    if (input.jumpPressed && player.onGround){
+      player.vy = JUMP_VELOCITY;
+      player.onGround = false;
+    }
+    input.jumpPressed = false;
+
+    // 重力
+    player.vy += GRAVITY;
+    player.x += player.vx;
+    player.y += player.vy;
+    // 地面
+    if (player.y >= GROUND_Y){
+      player.y = GROUND_Y;
+      player.vy = 0;
+      player.onGround = true;
+    }
+    // 左右边界
+    if (player.x < 6) player.x = 6;
+    if (player.x + player.w > LOGIC_W - 6) player.x = LOGIC_W - 6 - player.w;
+
+    // 自动开火 或 按钮开火
+    if (input.fire) playerFire(now);
+
+    // BOSS 轻微左右移动
+    boss.x += boss.dir * 0.4;
+    if (boss.x < LOGIC_W - 170) boss.dir = 1;
+    if (boss.x > LOGIC_W - boss.w - 8) boss.dir = -1;
+    // BOSS 攻击
+    if (now >= boss.nextAttackAt) bossAttack(now);
+
+    // 更新玩家子弹
+    for (let i=bullets.length-1;i>=0;i--){
+      const b = bullets[i];
+      b.x += b.vx; b.y += b.vy;
+      if (b.x<-10||b.x>LOGIC_W+10||b.y<-10||b.y>LOGIC_H+10){ bullets.splice(i,1); continue; }
+      // 命中 BOSS
+      const bossBox = { x: boss.x+6, y: boss.y+6, w: boss.w-12, h: boss.h-12 };
+      if (rectHit(b, bossBox)){
+        bullets.splice(i,1);
+        hitCount++;
+        boss.hp--;
+        boss.flashUntil = now + 140;
+        spawnParticles(b.x, b.y, '#ffd43b', 8, 2.5);
+        shakeStage();
+        updateHUD();
+        if (boss.hp <= 0){ endGame(true); return; }
+      }
+    }
+
+    // 更新肘击 - 每发肘击单独判定无敌，防止同帧多发肘击秒杀玩家
+    for (let i=zjAttacks.length-1;i>=0;i--){
+      const z = zjAttacks[i];
+      z.x += z.vx; z.y += z.vy; z.rot += z.spin;
+      if (z.x<-50||z.x>LOGIC_W+50||z.y<-50||z.y>LOGIC_H+50){ zjAttacks.splice(i,1); continue; }
+      if (now < player.invincibleUntil) continue;
+      const pBox = { x: player.x+6, y: player.y+10, w: player.w-12, h: player.h-18 };
+      if (rectHit(z, pBox)){
+        zjAttacks.splice(i,1);
+        player.hp--;
+        player.invincibleUntil = now + PLAYER_INVINCIBLE_MS;
+        player.flashUntil = now + PLAYER_INVINCIBLE_MS;
+        spawnParticles(player.x+player.w/2, player.y+player.h/2, '#ff6b6b', 14, 3.2);
+        shakeStage();
+        updateHUD();
+        if (player.hp <= 0){ endGame(false); return; }
+      }
+    }
+
+    // 粒子
+    for (let i=particles.length-1;i>=0;i--){
+      const p = particles[i];
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.96; p.vy = p.vy*0.96 + 0.05;
+      if (now - p.born > p.life) particles.splice(i,1);
+    }
+  }
+
+  // ---------- 渲染 ----------
+  function drawBg(){
+    // 渐变背景已由CSS给，但为了Canvas内视觉再铺一些装饰
+    // 远景星点 / 颗粒
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#ffd43b';
+    for (let i=0;i<18;i++){
+      const x = (i*73) % LOGIC_W;
+      const y = ((i*137) % (LOGIC_H-200)) + 20;
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.restore();
+    // 地面
+    const grad = ctx.createLinearGradient(0, GROUND_Y+80, 0, LOGIC_H);
+    grad.addColorStop(0, 'rgba(0,0,0,0.0)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, GROUND_Y+80, LOGIC_W, LOGIC_H - (GROUND_Y+80));
+    // 地平线
+    ctx.strokeStyle = 'rgba(255,77,79,0.25)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, GROUND_Y + 80);
+    ctx.lineTo(LOGIC_W, GROUND_Y + 80);
+    ctx.stroke();
+  }
+
+  function drawImgCentered(img, cx, cy, w, h, flipX=false, rot=0, flash=false){
+    if (!img) return;
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (rot) ctx.rotate(rot);
+    if (flipX) ctx.scale(-1,1);
+    if (flash){ ctx.filter = 'brightness(2.2) saturate(1.6)'; }
+    ctx.drawImage(img, -w/2, -h/2, w, h);
+    ctx.restore();
+  }
+
+  function render(now){
+    ctx.clearRect(0,0,LOGIC_W,LOGIC_H);
+    drawBg();
+
+    // BOSS
+    const bossFlash = now < boss.flashUntil;
+    drawImgCentered(imgCache.zjw, boss.x + boss.w/2, boss.y + boss.h/2, boss.w, boss.h, false, 0, bossFlash);
+    // BOSS 血条（在BOSS头顶上方直接用图绘制一张小血条，作为补充视觉）
+    const bossHpIndex = Math.max(0, Math.min(BOSS_MAX_HP, BOSS_MAX_HP - boss.hp)); // 0=满血
+    const bossHpKeys = ['zjwxt','zjwxt1','zjwxt2','zjwxt3','zjwxt4','zjwxt5'];
+    const bhImg = imgCache[bossHpKeys[bossHpIndex]] || imgCache.zjwxt;
+    if (bhImg){
+      const bw = 110, bh = 7;
+      ctx.drawImage(bhImg, boss.x + boss.w/2 - bw/2, boss.y - 18, bw, bh);
+    }
+
+    // 玩家（无敌时闪烁）
+    const invincible = now < player.invincibleUntil;
+    const pFlash = now < player.flashUntil;
+    let drawPlayer = true;
+    if (invincible && Math.floor(now/80) % 2 === 0) drawPlayer = false;
+    if (drawPlayer){
+      // 玩家素材原图是 60x120，正面朝右？假设面向右。根据 facing 翻转
+      drawImgCentered(imgCache.qyj, player.x + player.w/2, player.y + player.h/2,
+        player.w, player.h, player.facing < 0, 0, pFlash);
+    }
+    // 玩家头上小血条
+    const pHpIndex = Math.max(0, Math.min(PLAYER_MAX_HP, PLAYER_MAX_HP - player.hp));
+    const pHpKeys = ['qyjxt','qyjxt1','qyjxt2'];
+    const phImg = imgCache[pHpKeys[pHpIndex]] || imgCache.qyjxt;
+    if (phImg){
+      const pw = 46, ph = 7;
+      ctx.drawImage(phImg, player.x + player.w/2 - pw/2, player.y - 14, pw, ph);
+    }
+
+    // 子弹（素材 zd1/zd2 仅 3x3，适当放大以在移动端清晰可见）
+    for (const b of bullets){
+      const img = imgCache[b.kind] || imgCache.zd1;
+      const sz = b.w + 6;  // +6 放大渲染，约 10-11px
+      // 子弹尾焰光晕
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = '#ffd43b';
+      ctx.beginPath();
+      ctx.arc(b.x + b.w/2, b.y + b.h/2, sz*0.8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+      drawImgCentered(img, b.x + b.w/2, b.y + b.h/2, sz, sz);
+    }
+    // 肘击
+    for (const z of zjAttacks){
+      drawImgCentered(imgCache.zj, z.x + z.w/2, z.y + z.h/2, z.w*1.4, z.h*1.4, z.vx<0, z.rot);
+    }
+    // 粒子
+    for (const p of particles){
+      const t = 1 - (now - p.born) / p.life;
+      ctx.globalAlpha = Math.max(0, t);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ---------- 主循环 ----------
+  function loop(ts){
+    if (!lastT) lastT = ts;
+    const dt = Math.min(48, ts - lastT);
+    lastT = ts;
+    if (gameState === STATE.PLAY){
+      update(dt, ts);
+    }
+    render(ts);
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- 流程 ----------
+  function startGame(){
+    resetGame();
+    gameState = STATE.PLAY;
+    startOverlay.classList.add('hidden');
+    endOverlay.classList.add('hidden');
+    hud.style.display = 'flex';
+    playerHud.style.display = 'flex';
+    controls.style.display = 'flex';
+  }
+  function endGame(win){
+    gameState = win ? STATE.WIN : STATE.LOSE;
+    const elapsed = ((performance.now() - gameStartTime)/1000).toFixed(1);
+    statTime.textContent = elapsed + 's';
+    statHit.textContent  = hitCount + '';
+    endTitle.textContent = win ? '胜 利 ！' : '战 斗 失 败';
+    endTitle.classList.toggle('win',  win);
+    endTitle.classList.toggle('lose', !win);
+    endSub.textContent = win
+      ? '肘击王被击败！起义军获得了史诗级胜利！'
+      : '肘击王的力量太强大了，再试一次吧！';
+    endOverlay.classList.remove('hidden');
+    hud.style.display = 'none';
+    playerHud.style.display = 'none';
+    controls.style.display = 'none';
+  }
+  startBtn.addEventListener('click', startGame);
+  restartBtn.addEventListener('click', startGame);
+
+  // ---------- 初始化 ----------
+  resizeCanvas();
+  loadAssets().then(()=>{
+    // 预绘制空白
+    requestAnimationFrame(loop);
+  });
+
+  // 调试用全局 API（不影响游戏体验，可安全保留）
+  window.__game = {
+    get state(){ return gameState; },
+    get input(){ return input; },
+    setFire(v){ input.fire = !!v; if(input.fire){ btnFire.classList.add('pressed'); } else { btnFire.classList.remove('pressed'); } },
+    pressJump(){ input.jump = true; input.jumpPressed = true; btnJump.classList.add('pressed'); setTimeout(()=>{ input.jump=false; btnJump.classList.remove('pressed'); }, 120); },
+    setMove(x,y){ input.moveX = x; input.moveY = y; },
+    get player(){ return { ...player }; },
+    get boss(){ return { ...boss, hpMax: BOSS_MAX_HP }; },
+    get bulletsCount(){ return bullets.length; },
+    get zjCount(){ return zjAttacks.length; },
+    get hitCount(){ return hitCount; },
+    get elapsed(){ return ((performance.now() - gameStartTime)/1000).toFixed(2)+'s'; },
+  };
+
+})();
+</script>
+</body>
+</html>
