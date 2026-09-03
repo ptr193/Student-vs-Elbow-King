@@ -179,6 +179,49 @@
   .btn-jump:active, .btn-jump.pressed {
     transform: scale(0.92);
   }
+  /* BOSS 阶段/模式标签样式补充（HUD内） */
+  .hud .boss-name .phase-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 5px;
+    font-size: 10px;
+    background: rgba(255, 212, 59, 0.18);
+    color: var(--accent-2);
+    border: 1px solid rgba(255, 212, 59, 0.35);
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+  }
+  .hud .boss-name .phase-tag.p2 {
+    background: rgba(255, 77, 79, 0.18);
+    color: #ff8787;
+    border-color: rgba(255, 77, 79, 0.5);
+    animation: phasePulse 0.9s ease-in-out infinite alternate;
+  }
+  .hud .boss-name .phase-tag.def {
+    background: rgba(116, 192, 252, 0.18);
+    color: #74c0fc;
+    border-color: rgba(116, 192, 252, 0.5);
+  }
+  @keyframes phasePulse {
+    from { box-shadow: 0 0 0 rgba(255,77,79,0); }
+    to   { box-shadow: 0 0 10px rgba(255,77,79,0.55); }
+  }
+  /* 玩家血条增加爱心分段标记 */
+  .player-hud .hearts {
+    display: flex; gap: 4px;
+  }
+  .player-hud .heart {
+    width: 14px; height: 14px;
+    background: radial-gradient(circle at 30% 30%, #ff8787, #fa5252 60%, #c92a2a);
+    clip-path: path('M7 12.5 C 2 9.5, -1 6, 2 3 C 3.5 1.5, 5.5 2, 7 4 C 8.5 2, 10.5 1.5, 12 3 C 15 6, 12 9.5, 7 12.5 Z');
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.3));
+  }
+  .player-hud .heart.lost {
+    background: #495057;
+    opacity: 0.55;
+  }
+
   /* 开始/结束 遮罩 */
   .overlay {
     position: absolute; inset: 0;
@@ -287,16 +330,19 @@
     <div class="hud" id="hud" style="display:none;">
       <div class="boss-wrap">
         <div class="boss-name">
-          <span>⚡ 肘击王 BOSS</span>
+          <span>⚡ <span id="bossName">肘击王</span><span class="phase-tag" id="phaseTag">一阶段</span></span>
           <span id="bossHpText">6 / 6</span>
         </div>
         <div class="boss-hp-bar"><div class="boss-hp-fill" id="bossHpFill"></div></div>
+        <!-- 分段刻度（6段，每段对应1血点） -->
+        <div style="display:flex; gap:2px; margin-top:3px; opacity:0.8;" id="bossTicks"></div>
       </div>
       <div class="wave-tag" id="waveTag">LV.1</div>
     </div>
 
     <div class="player-hud" id="playerHud" style="display:none;">
       <div class="pname">✊ 起义军</div>
+      <div class="hearts" id="playerHearts"></div>
       <div class="php"><div class="php-fill" id="playerHpFill"></div></div>
     </div>
 
@@ -318,10 +364,16 @@
         <div class="sub">拿起你的枪，击败不可能被击败的肘击王！</div>
         <div class="tips">
           🎮 <b>操作说明</b><br>
-          · 左下<b>摇杆</b>控制移动<br>
-          · 右下蓝色<b>跳</b>按钮跳跃<br>
-          · 右下红色<b>射击</b>按钮开火<br>
-          · 肘击王会不断发射<b>肘击</b>，小心躲避！
+          · 左下<b>摇杆</b>控制移动，右下<b>跳/射击</b>按钮<br>
+          ⚠️ <b>死亡规则（游戏设计）</b><br>
+          · 一阶段：被肘击 <b>2 次即死</b><br>
+          · <b>触碰肘击王</b>下半身 → <b>立即秒杀</b><br>
+          · 二阶段：<b>任何一发肘击 → 一击必杀</b><br>
+          💎 <b>BOSS 破血节奏</b><br>
+          · 一阶段普通：<b>2 枪 = 1 格血</b><br>
+          · 半血后进入<b>🛡防御模式</b>：<b>6 枪 = 1 格</b>，攻击更频繁<br>
+          · 打完一阶段 → <b>血条瞬间回满</b>切换二阶段（zjw2 形象）<br>
+          · 二阶段：<b>5 枪 = 1 格血</b>，弹幕极猛
         </div>
         <button class="big-btn" id="startBtn">开 始 战 斗</button>
       </div>
@@ -360,14 +412,38 @@
   const GRAVITY = 0.55;
   const PLAYER_MOVE_SPEED = 2.6;
   const JUMP_VELOCITY = -10.5;
-  const PLAYER_MAX_HP = 2;       // 玩家血量 2（满血 / 1 / 0 三档血条）
-  const BOSS_MAX_HP = 6;         // BOSS血量 6（对应 6 张血条图）
-  const BULLET_SPEED = 7.5;      // 玩家子弹速度（向上）
-  const ZJ_SPEED = 3.4;          // 肘击速度（向下，带水平）
-  const FIRE_COOLDOWN_MS = 220;  // 射击冷却
-  const BOSS_ATTACK_CD_MIN = 550;
-  const BOSS_ATTACK_CD_MAX = 1000;
+  const PLAYER_MAX_HP = 2;       // 玩家血量 2（被肘击两次即死 = 游戏设计）
+  const BOSS_P1_HP   = 6;        // 阶段1 BOSS 血量（6 大格）
+  const BOSS_P2_HP   = 6;        // 阶段2 BOSS 血量（再 6 大格，回满）
+  const BULLET_SPEED = 7.5;
+  const ZJ_SPEED = 3.4;
+  const FIRE_COOLDOWN_MS = 220;
   const PLAYER_INVINCIBLE_MS = 900;
+
+  // 阶段/模式配置（数值 = 游戏刻意设计的不平衡感）
+  // phase：1 = 一阶段, 2 = 二阶段
+  // mode ：'normal' = 普通, 'defense' = 防御模式 (P1半血后)
+  const PHASE = { P1:'p1', P2:'p2' };
+  const MODE  = { NORMAL:'normal', DEFENSE:'defense' };
+
+  // 每 1 大格 BOSS 血需要的子弹命中数
+  const HITS_PER_HP = {
+    p1_normal:  2,   // 阶段1 普通：2枪=1血
+    p1_defense: 6,   // 阶段1 防御：6枪=1血（半血后进入）
+    p2:         5,   // 阶段2：5枪=1血
+  };
+  // BOSS 攻击 CD：[min_ms, max_ms]
+  const BOSS_ATTACK_CD = {
+    p1_normal:  [850, 1250],
+    p1_defense: [450,  760],   // 防御模式：攻击更频繁
+    p2:         [240,  420],   // 二阶段：攻击极端频繁
+  };
+  // 肘击单次发射数量
+  const BOSS_ATTACK_COUNT = {
+    p1_normal:  function(damageTaken){ return 1 + Math.floor(damageTaken/3); }, // 1 → 2
+    p1_defense: function(){ return 2 + Math.floor(Math.random()*2); },          // 2-3
+    p2:         function(){ return 3 + Math.floor(Math.random()*2); },          // 3-4
+  };
 
   // ---------- Canvas / DOM ----------
   const stage   = document.getElementById('stage');
@@ -383,10 +459,41 @@
   const bossHpFill = document.getElementById('bossHpFill');
   const bossHpText = document.getElementById('bossHpText');
   const playerHpFill = document.getElementById('playerHpFill');
+  const bossNameEl   = document.getElementById('bossName');
+  const phaseTagEl   = document.getElementById('phaseTag');
+  const waveTagEl    = document.getElementById('waveTag');
+  const bossTicksEl  = document.getElementById('bossTicks');
+  const playerHeartsEl = document.getElementById('playerHearts');
   const endTitle = document.getElementById('endTitle');
   const endSub   = document.getElementById('endSub');
   const statTime = document.getElementById('statTime');
   const statHit  = document.getElementById('statHit');
+
+  // HUD - BOSS 分段刻度构建
+  function buildBossTicks(maxHp){
+    bossTicksEl.innerHTML = '';
+    for (let i=0;i<maxHp;i++){
+      const d = document.createElement('div');
+      d.style.flex = '1';
+      d.style.height = '2px';
+      d.style.background = 'rgba(255,255,255,0.22)';
+      d.style.borderRadius = '2px';
+      d.dataset.idx = String(i);
+      bossTicksEl.appendChild(d);
+    }
+  }
+  buildBossTicks(BOSS_P1_HP);
+  // HUD - 玩家爱心分段构建
+  function buildPlayerHearts(maxHp){
+    playerHeartsEl.innerHTML = '';
+    for (let i=0;i<maxHp;i++){
+      const d = document.createElement('div');
+      d.className = 'heart';
+      d.dataset.idx = String(i);
+      playerHeartsEl.appendChild(d);
+    }
+  }
+  buildPlayerHearts(PLAYER_MAX_HP);
 
   let SCALE = 1;    // 逻辑->屏幕 缩放
   let OFF_X = 0;    // 画布偏移（黑边补偿）
@@ -417,22 +524,13 @@
   window.addEventListener('orientationchange', resizeCanvas);
 
   // ---------- 资源加载 ----------
+  // 注：子弹(zd1/zd2)与血条(qyjxt*, zjwxt*)已改为纯 Canvas 绘制，不再依赖素材
   const ASSETS = {
-    qyj: 'qyj.png',
-    zjw: 'zjw1.png',
-    zd1: 'zd1.png',
-    zd2: 'zd2.png',
-    zj:  'zj.png',
-    qyjxt:   'qyjxt.png',
-    qyjxt1:  'qyjxt-1.png',
-    qyjxt2:  'qyjxt-2.png',
-    zjwxt:   'zjwxt.png',
-    zjwxt1:  'zjwxt-1.png',
-    zjwxt2:  'zjwxt-2.png',
-    zjwxt3:  'zjwxt-3.png',
-    zjwxt4:  'zjwxt-4.png',
-    zjwxt5:  'zjwxt-5.png',
-    jsjm:    'jsjm.png'
+    qyj:   'qyj.png',
+    zjw1:  'zjw1.png',   // 阶段1 肘击王形象
+    zjw2:  'zjw2.png',   // 阶段2 肘击王形象
+    zj:    'zj.png',
+    jsjm:  'jsjm.png',
   };
   const imgCache = {};
   function loadAssets(){
@@ -457,21 +555,61 @@
     vx: 0, vy: 0,
     onGround: true,
     hp: PLAYER_MAX_HP,
-    facing: 1,      // 1右 -1左（玩家朝右开火）
+    facing: 1,
     lastFireAt: 0,
     invincibleUntil: 0,
     flashUntil: 0,
   };
+
+  // BOSS：阶段/模式 + 血格内部命中计数器（每格需要多枪才破）
   const boss = {
     x: LOGIC_W - 90, y: 60, w: 70, h: 154,
-    hp: BOSS_MAX_HP,
+    phase: 1,       // 1 or 2
+    mode:  MODE.NORMAL,
+    hpMax: BOSS_P1_HP,   // 当前阶段大格总数
+    hp:    BOSS_P1_HP,   // 当前大格数（剩余）
+    cellHits: 0,         // 当前血格已经命中的子弹数
     nextAttackAt: 0,
-    dir: -1,         // 左右轻微移动
+    dir: -1,
     flashUntil: 0,
+    defenseTriggered: false, // P1半血防御标志
+    transitionUntil: 0,      // 阶段切换动画截止
   };
-  const bullets = [];   // 玩家子弹
-  const zjAttacks = []; // 肘击（BOSS攻击）
-  const particles = []; // 爆炸粒子
+  const bullets = [];
+  const zjAttacks = [];
+  const particles = [];
+  // 阶段切换横幅（大文字）
+  const banner = { text: '', until: 0, color:'#ffd43b' };
+
+  // ------- 工具：获取当前配置 -------
+  function currentBossCfg(){
+    if (boss.phase === 2) {
+      return {
+        hitsPerHp: HITS_PER_HP.p2,
+        attackCD: BOSS_ATTACK_CD.p2,
+        attackCount: BOSS_ATTACK_COUNT.p2(),
+        isP2: true, oneHitKill: true, // 阶段2：一肘击 = 直接死亡
+        sprite: 'zjw2',
+      };
+    }
+    // P1
+    const isDef = boss.mode === MODE.DEFENSE;
+    return {
+      hitsPerHp: isDef ? HITS_PER_HP.p1_defense : HITS_PER_HP.p1_normal,
+      attackCD:  isDef ? BOSS_ATTACK_CD.p1_defense : BOSS_ATTACK_CD.p1_normal,
+      attackCount: isDef
+        ? BOSS_ATTACK_COUNT.p1_defense()
+        : BOSS_ATTACK_COUNT.p1_normal(BOSS_P1_HP - boss.hp),
+      isP2: false, oneHitKill: false,
+      sprite: 'zjw1',
+    };
+  }
+
+  function showBanner(text, color, durationMs){
+    banner.text = text;
+    banner.color = color || '#ffd43b';
+    banner.until = performance.now() + durationMs;
+  }
 
   function resetGame(){
     const now = performance.now();
@@ -481,28 +619,79 @@
     player.hp = PLAYER_MAX_HP;
     player.facing = 1;
     player.lastFireAt = 0;
-    player.invincibleUntil = now + 600; // 开局短暂无敌，防首帧秒杀
+    player.invincibleUntil = now + 600;
     player.flashUntil = 0;
-    boss.x = LOGIC_W - 90; boss.y = 60;
-    boss.hp = BOSS_MAX_HP;
-    boss.nextAttackAt = now + 1400; // 开局延迟1.4s再攻击
-    boss.dir = -1;
+    // BOSS 放在玩家右侧地面附近（与玩家同一高度层，触碰秒杀才有意义）
+    // 素材原始 zjw1.png = 100x220，比例 1:2.2，按绘制尺寸 w=70 则 h ≈ 154
+    const bossDrawH = 154;
+    boss.w = 70; boss.h = bossDrawH;
+    boss.x = LOGIC_W - boss.w - 10;
+    boss.y = GROUND_Y + 80 - bossDrawH; // 底部对齐地平线
+    boss.phase = 1;
+    boss.mode  = MODE.NORMAL;
+    boss.hpMax = BOSS_P1_HP;
+    boss.hp    = BOSS_P1_HP;
+    boss.cellHits = 0;
+    boss.nextAttackAt = now + 1400;
+    boss.dir = -1;     // 初始向左靠近玩家
     boss.flashUntil = 0;
+    boss.defenseTriggered = false;
+    boss.transitionUntil = 0;
     bullets.length = 0;
     zjAttacks.length = 0;
     particles.length = 0;
     hitCount = 0;
     gameStartTime = now;
+    buildBossTicks(BOSS_P1_HP);
+    showBanner('⚡ 一阶段 · 肘击王', '#ffd43b', 1600);
     updateHUD();
   }
 
   // ---------- HUD 更新 ----------
   function updateHUD(){
-    const bossPct = Math.max(0, boss.hp) / BOSS_MAX_HP * 100;
-    bossHpFill.style.width = bossPct + '%';
-    bossHpText.textContent = Math.max(0, boss.hp) + ' / ' + BOSS_MAX_HP;
+    // BOSS 进度 = 剩余大格
+    const pct = Math.max(0, boss.hp) / boss.hpMax * 100;
+    // 再在最后 1 格里做细分（cellHits / hitsPerHp），形成"亚格子"过渡效果
+    const cfg = currentBossCfg();
+    const subPct = Math.max(0, 1 - (boss.cellHits / Math.max(1, cfg.hitsPerHp)));
+    // HP = boss.hp - 1 + subPct / boss.hpMax
+    const displayPct = boss.hp <= 0 ? 0 : ((boss.hp - 1 + subPct) / boss.hpMax * 100);
+    bossHpFill.style.width = Math.max(0, displayPct) + '%';
+    bossHpText.textContent = boss.hp + ' / ' + boss.hpMax +
+      (boss.cellHits > 0 ? `  (${cfg.hitsPerHp - boss.cellHits}枪/格)` : `  (${cfg.hitsPerHp}枪/格)`);
+    // 阶段标签 + 血条颜色
+    phaseTagEl.classList.remove('p2', 'def');
+    if (boss.phase === 2){
+      phaseTagEl.textContent = '二阶段';
+      phaseTagEl.classList.add('p2');
+      bossNameEl.textContent = '肘击王 · 觉醒';
+      bossHpFill.style.background = 'linear-gradient(90deg, #ff006e, #ffbe0b, #fb5607)';
+    } else {
+      bossNameEl.textContent = '肘击王';
+      if (boss.mode === MODE.DEFENSE){
+        phaseTagEl.textContent = '防御模式';
+        phaseTagEl.classList.add('def');
+        bossHpFill.style.background = 'linear-gradient(90deg, #4dabf7, #339af0, #1864ab)';
+      } else {
+        phaseTagEl.textContent = '一阶段';
+        bossHpFill.style.background = 'linear-gradient(90deg, #ff6b6b, #fa5252, #c92a2a)';
+      }
+    }
+    // 刻度：已失去的血格变暗
+    const lostCount = boss.hpMax - boss.hp;
+    [...bossTicksEl.children].forEach((el, i)=>{
+      const lost = i < lostCount;
+      el.style.background = lost ? 'rgba(255,77,79,0.18)' : 'rgba(255,255,255,0.22)';
+    });
+    // LV tag
+    waveTagEl.textContent = boss.phase === 2 ? 'LV.2' : 'LV.1';
+    waveTagEl.style.color = boss.phase === 2 ? '#ff8787' : 'var(--accent-2)';
+    // 玩家血条
     const pPct = Math.max(0, player.hp) / PLAYER_MAX_HP * 100;
     playerHpFill.style.width = pPct + '%';
+    [...playerHeartsEl.children].forEach((el, i)=>{
+      el.classList.toggle('lost', i >= player.hp);
+    });
   }
 
   // ---------- 输入系统 ----------
@@ -647,42 +836,93 @@
   function playerFire(now){
     if (now - player.lastFireAt < FIRE_COOLDOWN_MS) return;
     player.lastFireAt = now;
-    // 子弹从枪口（玩家右上）发射，向 BOSS 方向（右上为主）
     const bx = player.x + player.w - 4;
     const by = player.y + 18;
-    // 目标：BOSS 中心 + 随机偏移
     const tx = boss.x + boss.w/2 + rand(-15, 15);
     const ty = boss.y + boss.h/2 + rand(-25, 25);
     const dx = tx - bx, dy = ty - by;
     const L = Math.hypot(dx, dy) || 1;
     const vx = dx/L * BULLET_SPEED;
     const vy = dy/L * BULLET_SPEED;
-    const useZd2 = Math.random() < 0.5;
-    bullets.push({ x:bx, y:by, w:useZd2?5:4, h:useZd2?5:4, vx, vy, kind: useZd2?'zd2':'zd1' });
+    // 改为纯 canvas 绘制子弹：存颜色（普通/暴击两种变体）+ 尺寸 + 生命
+    const kind = Math.random() < 0.5 ? 'A' : 'B';
+    bullets.push({
+      x: bx, y: by,
+      w: kind === 'A' ? 4 : 5,
+      h: kind === 'A' ? 4 : 5,
+      vx, vy,
+      kind,
+      born: now,
+    });
   }
 
   function bossAttack(now){
-    // 发射多枚"肘击"扇形攻击
-    const count = 1 + Math.floor((BOSS_MAX_HP - boss.hp) / 2); // 1 -> 2 -> 3
+    const cfg = currentBossCfg();
+    const count = cfg.attackCount;
     const originX = boss.x + boss.w * 0.15;
     const originY = boss.y + boss.h - 10;
     const targetX = player.x + player.w/2;
     const targetY = player.y + player.h/2;
     const baseAng = Math.atan2(targetY - originY, targetX - originX);
-    const spread = Math.PI / 7;
+    let spread = Math.PI / 7;
+    if (cfg.isP2) spread = Math.PI / 4.2;      // 二阶段扇形更宽
+    else if (boss.mode === MODE.DEFENSE) spread = Math.PI / 5.2;
     for (let i=0;i<count;i++){
       const t = count===1 ? 0 : (i/(count-1) - 0.5);
-      const ang = baseAng + t * spread * 1.4 + rand(-0.05, 0.05);
+      const ang = baseAng + t * spread * (cfg.isP2? 1.6 : 1.4) + rand(-0.05, 0.05);
+      const speed = cfg.isP2 ? ZJ_SPEED * 1.25 : ZJ_SPEED;
       zjAttacks.push({
         x: originX, y: originY,
         w: 22, h: 11,
-        vx: Math.cos(ang) * ZJ_SPEED,
-        vy: Math.sin(ang) * ZJ_SPEED,
-        spin: rand(-0.2, 0.2),
-        rot: 0
+        vx: Math.cos(ang) * speed,
+        vy: Math.sin(ang) * speed,
+        spin: rand(-0.25, 0.25),
+        rot: 0,
+        p2: cfg.isP2,
       });
     }
-    boss.nextAttackAt = now + rand(BOSS_ATTACK_CD_MIN, BOSS_ATTACK_CD_MAX) * (0.6 + boss.hp/BOSS_MAX_HP*0.6);
+    // 下一攻击间隔（二阶段/防御模式更短）
+    const [lo, hi] = cfg.attackCD;
+    boss.nextAttackAt = now + rand(lo, hi);
+  }
+
+  // BOSS 阶段切换：P1 死亡 → 进入 P2
+  function enterPhase2(now){
+    boss.phase = 2;
+    boss.mode  = MODE.NORMAL;
+    boss.hpMax = BOSS_P2_HP;
+    boss.hp    = BOSS_P2_HP;
+    boss.cellHits = 0;
+    boss.defenseTriggered = false;
+    boss.nextAttackAt = now + 900;  // 短暂喘息后猛攻
+    boss.transitionUntil = now + 1400;
+    buildBossTicks(BOSS_P2_HP);
+    showBanner('🔥 肘击王觉醒 · 二阶段', '#ff6b6b', 2000);
+    shakeStage();
+    // 爆发粒子
+    for (let i=0;i<3;i++){
+      setTimeout(()=>spawnParticles(boss.x+boss.w/2, boss.y+boss.h/2,
+        i%2? '#ff006e':'#ffbe0b', 24, 5), i * 90);
+    }
+  }
+
+  // 玩家受击（P1 扣1血，P2 或触碰BOSS 即死）
+  function damagePlayer(now, instantKill, reason){
+    if (now < player.invincibleUntil && !instantKill) return false;
+    if (instantKill){
+      player.hp = 0;
+      player.invincibleUntil = now + 1200;
+      player.flashUntil = now + 1200;
+    } else {
+      player.hp--;
+      player.invincibleUntil = now + PLAYER_INVINCIBLE_MS;
+      player.flashUntil = now + PLAYER_INVINCIBLE_MS;
+    }
+    spawnParticles(player.x+player.w/2, player.y+player.h/2, instantKill?'#ff006e':'#ff6b6b', instantKill?28:14, instantKill?5.5:3.2);
+    shakeStage();
+    updateHUD();
+    if (player.hp <= 0){ endGame(false, reason); return true; }
+    return true;
   }
 
   // ---------- 更新 ----------
@@ -692,58 +932,103 @@
     // 玩家移动
     player.vx = input.moveX * PLAYER_MOVE_SPEED;
     if (Math.abs(player.vx) > 0.01) player.facing = player.vx > 0 ? 1 : -1;
-
     // 跳跃
     if (input.jumpPressed && player.onGround){
       player.vy = JUMP_VELOCITY;
       player.onGround = false;
     }
     input.jumpPressed = false;
-
     // 重力
     player.vy += GRAVITY;
     player.x += player.vx;
     player.y += player.vy;
-    // 地面
     if (player.y >= GROUND_Y){
-      player.y = GROUND_Y;
-      player.vy = 0;
-      player.onGround = true;
+      player.y = GROUND_Y; player.vy = 0; player.onGround = true;
     }
-    // 左右边界
     if (player.x < 6) player.x = 6;
     if (player.x + player.w > LOGIC_W - 6) player.x = LOGIC_W - 6 - player.w;
 
-    // 自动开火 或 按钮开火
     if (input.fire) playerFire(now);
 
-    // BOSS 轻微左右移动
-    boss.x += boss.dir * 0.4;
-    if (boss.x < LOGIC_W - 170) boss.dir = 1;
-    if (boss.x > LOGIC_W - boss.w - 8) boss.dir = -1;
-    // BOSS 攻击
-    if (now >= boss.nextAttackAt) bossAttack(now);
+    // BOSS 左右移动：追踪玩家方向（玩家靠左BOSS就左，玩家靠右BOSS就右）
+    // 阶段2移动更快，增加"必须保持距离"的难度
+    const nowU = now;
+    const chaseEvery = boss.phase === 2 ? 150 : 300;
+    if (!boss._nextDirCheck || nowU >= boss._nextDirCheck){
+      boss._nextDirCheck = nowU + chaseEvery + rand(0, 120);
+      const playerCx = player.x + player.w/2;
+      const bossCx   = boss.x + boss.w/2;
+      // 在小范围内就朝玩家走，若已经很近（<30像素）就停一下
+      if (Math.abs(playerCx - bossCx) < 28) boss.dir = 0;
+      else boss.dir = playerCx < bossCx ? -1 : 1;
+    }
+    const moveSpeed = boss.phase === 2 ? 1.15 : 0.55;
+    boss.x += boss.dir * moveSpeed;
+    // 舞台边界兜底（避免越出）
+    if (boss.x < 80) { boss.x = 80; boss.dir = 1; }
+    if (boss.x > LOGIC_W - boss.w - 6) { boss.x = LOGIC_W - boss.w - 6; boss.dir = -1; }
+    // 阶段切换期间暂停攻击（有喘息）
+    if (now >= boss.nextAttackAt && now > boss.transitionUntil) bossAttack(now);
 
-    // 更新玩家子弹
+    // ===== 玩家子弹命中 BOSS（多枪=1血机制）=====
+    const bossBox = { x: boss.x+6, y: boss.y+6, w: boss.w-12, h: boss.h-12 };
     for (let i=bullets.length-1;i>=0;i--){
       const b = bullets[i];
       b.x += b.vx; b.y += b.vy;
       if (b.x<-10||b.x>LOGIC_W+10||b.y<-10||b.y>LOGIC_H+10){ bullets.splice(i,1); continue; }
-      // 命中 BOSS
-      const bossBox = { x: boss.x+6, y: boss.y+6, w: boss.w-12, h: boss.h-12 };
       if (rectHit(b, bossBox)){
         bullets.splice(i,1);
         hitCount++;
-        boss.hp--;
-        boss.flashUntil = now + 140;
-        spawnParticles(b.x, b.y, '#ffd43b', 8, 2.5);
-        shakeStage();
+        const cfg = currentBossCfg();
+        boss.cellHits++;
+        boss.flashUntil = now + 120;
+        // 粒子 + 轻微震动
+        spawnParticles(b.x, b.y, cfg.isP2 ? '#ffbe0b' : '#ffd43b', 6, 2.2);
+        // 是否打破当前血格
+        if (boss.cellHits >= cfg.hitsPerHp){
+          boss.cellHits = 0;
+          boss.hp--;
+          spawnParticles(boss.x+boss.w/2, boss.y+boss.h/2, cfg.isP2?'#ff006e':'#fa5252', 18, 4);
+          shakeStage();
+
+          // 阶段 1 半血 → 进入防御模式（只触发一次）
+          if (boss.phase === 1 && !boss.defenseTriggered && boss.hp <= Math.floor(BOSS_P1_HP/2)){
+            boss.defenseTriggered = true;
+            boss.mode  = MODE.DEFENSE;
+            showBanner('🛡 防御模式 · 6枪才破1格', '#4dabf7', 2000);
+            shakeStage();
+            // 立即再发射一波
+            boss.nextAttackAt = now + 220;
+          }
+
+          // P1 血格归零 → 进入 P2
+          if (boss.phase === 1 && boss.hp <= 0){
+            enterPhase2(now);
+            updateHUD();
+            continue;
+          }
+          // P2 血格归零 → 胜利
+          if (boss.phase === 2 && boss.hp <= 0){
+            updateHUD();
+            endGame(true);
+            return;
+          }
+        }
         updateHUD();
-        if (boss.hp <= 0){ endGame(true); return; }
       }
     }
 
-    // 更新肘击 - 每发肘击单独判定无敌，防止同帧多发肘击秒杀玩家
+    // ===== 玩家触碰 BOSS → 秒杀（游戏设计：任何身体部位重叠即死）=====
+    if (now > boss.transitionUntil && now > player.invincibleUntil){
+      const touchBox = { x: boss.x+4, y: boss.y+12, w: boss.w-8, h: boss.h-14 };
+      const pBox = { x: player.x+6, y: player.y+10, w: player.w-12, h: player.h-18 };
+      if (rectHit(touchBox, pBox)){
+        const died = damagePlayer(now, true, '触碰肘击王被秒杀');
+        if (died) return;
+      }
+    }
+
+    // ===== 肘击伤害判定 =====
     for (let i=zjAttacks.length-1;i>=0;i--){
       const z = zjAttacks[i];
       z.x += z.vx; z.y += z.vy; z.rot += z.spin;
@@ -752,13 +1037,10 @@
       const pBox = { x: player.x+6, y: player.y+10, w: player.w-12, h: player.h-18 };
       if (rectHit(z, pBox)){
         zjAttacks.splice(i,1);
-        player.hp--;
-        player.invincibleUntil = now + PLAYER_INVINCIBLE_MS;
-        player.flashUntil = now + PLAYER_INVINCIBLE_MS;
-        spawnParticles(player.x+player.w/2, player.y+player.h/2, '#ff6b6b', 14, 3.2);
-        shakeStage();
-        updateHUD();
-        if (player.hp <= 0){ endGame(false); return; }
+        const cfg = currentBossCfg();
+        const reason = cfg.isP2 ? '阶段2肘击一击必杀' : '被肘击命中';
+        const died = damagePlayer(now, cfg.oneHitKill, reason);
+        if (died) return;
       }
     }
 
@@ -772,26 +1054,31 @@
   }
 
   // ---------- 渲染 ----------
-  function drawBg(){
-    // 渐变背景已由CSS给，但为了Canvas内视觉再铺一些装饰
-    // 远景星点 / 颗粒
+  function drawBg(now){
+    // 二阶段背景更红/动荡
+    if (boss.phase === 2){
+      ctx.save();
+      const pulse = 0.08 + 0.04*Math.sin(now/220);
+      ctx.fillStyle = `rgba(255, 0, 60, ${pulse})`;
+      ctx.fillRect(0,0,LOGIC_W,LOGIC_H);
+      ctx.restore();
+    }
     ctx.save();
-    ctx.globalAlpha = 0.25;
-    ctx.fillStyle = '#ffd43b';
-    for (let i=0;i<18;i++){
+    ctx.globalAlpha = boss.phase === 2 ? 0.5 : 0.25;
+    ctx.fillStyle = boss.phase === 2 ? '#ffbe0b' : '#ffd43b';
+    for (let i=0;i<(boss.phase===2?32:18);i++){
       const x = (i*73) % LOGIC_W;
       const y = ((i*137) % (LOGIC_H-200)) + 20;
-      ctx.fillRect(x, y, 2, 2);
+      ctx.fillRect(x, y, boss.phase===2?3:2, boss.phase===2?3:2);
     }
     ctx.restore();
     // 地面
     const grad = ctx.createLinearGradient(0, GROUND_Y+80, 0, LOGIC_H);
     grad.addColorStop(0, 'rgba(0,0,0,0.0)');
-    grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+    grad.addColorStop(1, boss.phase===2 ? 'rgba(255,0,60,0.45)' : 'rgba(0,0,0,0.55)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, GROUND_Y+80, LOGIC_W, LOGIC_H - (GROUND_Y+80));
-    // 地平线
-    ctx.strokeStyle = 'rgba(255,77,79,0.25)';
+    ctx.strokeStyle = boss.phase===2 ? 'rgba(255,0,110,0.55)' : 'rgba(255,77,79,0.25)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, GROUND_Y + 80);
@@ -810,59 +1097,235 @@
     ctx.restore();
   }
 
+  // ----- 纯 Canvas 画子弹（替代 zd1/zd2 素材）-----
+  function drawBullet(b){
+    const cx = b.x + b.w/2, cy = b.y + b.h/2;
+    const sz = b.w + 6; // ~10-11
+    // 尾焰光晕
+    ctx.save();
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, sz*1.2);
+    if (b.kind === 'A'){
+      g.addColorStop(0, 'rgba(255, 230, 120, 0.95)');
+      g.addColorStop(0.5, 'rgba(255, 170, 40, 0.55)');
+      g.addColorStop(1, 'rgba(255, 170, 40, 0)');
+    } else {
+      g.addColorStop(0, 'rgba(255, 140, 180, 0.95)');
+      g.addColorStop(0.5, 'rgba(255, 60, 120, 0.55)');
+      g.addColorStop(1, 'rgba(255, 60, 120, 0)');
+    }
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(cx, cy, sz*1.2, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+    // 内核：钻石形小弹
+    ctx.save();
+    ctx.translate(cx, cy);
+    // 运动方向倾斜
+    ctx.rotate(Math.atan2(b.vy, b.vx));
+    const coreColor = b.kind === 'A' ? '#fff3a8' : '#ffd1dc';
+    const ringColor = b.kind === 'A' ? '#f08c00' : '#ff006e';
+    ctx.fillStyle = ringColor;
+    ctx.beginPath();
+    ctx.moveTo(sz*0.55, 0);
+    ctx.lineTo(0, sz*0.38);
+    ctx.lineTo(-sz*0.55, 0);
+    ctx.lineTo(0, -sz*0.38);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = coreColor;
+    ctx.beginPath();
+    ctx.moveTo(sz*0.28, 0);
+    ctx.lineTo(0, sz*0.2);
+    ctx.lineTo(-sz*0.28, 0);
+    ctx.lineTo(0, -sz*0.2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ----- 纯 Canvas 画 BOSS 头顶细分血条（替代 zjwxt* 素材）-----
+  function drawBossMiniHp(x, y, w, h){
+    const cfg = currentBossCfg();
+    const totalCells = boss.hpMax;
+    const cellW = w / totalCells;
+    // 外框
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x-1, y-1, w+2, h+2);
+    // 已失格（暗）
+    const lost = totalCells - boss.hp;
+    for (let i=0;i<totalCells;i++){
+      const cx = x + i*cellW;
+      const full = i >= lost;
+      let c1, c2;
+      if (boss.phase === 2){ c1 = '#ff006e'; c2 = '#fb5607'; }
+      else if (boss.mode === MODE.DEFENSE){ c1 = '#4dabf7'; c2 = '#1864ab'; }
+      else { c1 = '#ff6b6b'; c2 = '#c92a2a'; }
+      if (full){
+        const g = ctx.createLinearGradient(cx, y, cx, y+h);
+        g.addColorStop(0, c1); g.addColorStop(1, c2);
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      }
+      ctx.fillRect(cx+1, y, cellW-2, h);
+      // 第一格做亚格子进度
+      if (full && i === lost){ // 即 当前第一格
+        const sub = 1 - boss.cellHits / cfg.hitsPerHp;
+        ctx.fillStyle = 'rgba(255,255,255,0.25)';
+        ctx.fillRect(cx+1, y, (cellW-2)*sub, h);
+      }
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x-0.5, y-0.5, w+1, h+1);
+    // 分隔竖线
+    for (let i=1;i<totalCells;i++){
+      ctx.beginPath();
+      ctx.moveTo(x + i*cellW, y);
+      ctx.lineTo(x + i*cellW, y+h);
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // ----- 纯 Canvas 画玩家头顶细分血条（替代 qyjxt* 素材）-----
+  function drawPlayerMiniHp(x, y, w, h){
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x-1, y-1, w+2, h+2);
+    const cellW = w / PLAYER_MAX_HP;
+    for (let i=0;i<PLAYER_MAX_HP;i++){
+      const cx = x + i*cellW;
+      const alive = i < player.hp;
+      if (alive){
+        const g = ctx.createLinearGradient(cx, y, cx, y+h);
+        g.addColorStop(0, '#8ce99a'); g.addColorStop(1, '#2b8a3e');
+        ctx.fillStyle = g;
+      } else {
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      }
+      ctx.fillRect(cx+1, y, cellW-2, h);
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.strokeRect(x-0.5, y-0.5, w+1, h+1);
+    for (let i=1;i<PLAYER_MAX_HP;i++){
+      ctx.beginPath();
+      ctx.moveTo(x + i*cellW, y);
+      ctx.lineTo(x + i*cellW, y+h);
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // 阶段横幅
+  function drawBanner(now){
+    if (now > banner.until || !banner.text) return;
+    const life = banner.until - now;
+    let alpha = 1;
+    if (life < 300) alpha = life / 300;
+    const elapsed = (performance.now() - (banner.until - 2000));
+    const slideIn = Math.min(1, elapsed / 350);
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    const cy = 230 + (1 - slideIn) * -30;
+    // 背景条
+    ctx.fillStyle = 'rgba(10, 10, 20, 0.75)';
+    ctx.fillRect(0, cy-28, LOGIC_W, 56);
+    // 两条色带
+    ctx.fillStyle = banner.color;
+    ctx.fillRect(0, cy-28, LOGIC_W, 3);
+    ctx.fillRect(0, cy+25, LOGIC_W, 3);
+    // 大字
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 22px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+    // 发光
+    ctx.shadowColor = banner.color;
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = banner.color;
+    ctx.fillText(banner.text, LOGIC_W/2, cy);
+    ctx.restore();
+  }
+
   function render(now){
     ctx.clearRect(0,0,LOGIC_W,LOGIC_H);
-    drawBg();
+    drawBg(now);
 
-    // BOSS
+    // BOSS（根据阶段选 zjw1/zjw2）
+    const cfg = currentBossCfg();
     const bossFlash = now < boss.flashUntil;
-    drawImgCentered(imgCache.zjw, boss.x + boss.w/2, boss.y + boss.h/2, boss.w, boss.h, false, 0, bossFlash);
-    // BOSS 血条（在BOSS头顶上方直接用图绘制一张小血条，作为补充视觉）
-    const bossHpIndex = Math.max(0, Math.min(BOSS_MAX_HP, BOSS_MAX_HP - boss.hp)); // 0=满血
-    const bossHpKeys = ['zjwxt','zjwxt1','zjwxt2','zjwxt3','zjwxt4','zjwxt5'];
-    const bhImg = imgCache[bossHpKeys[bossHpIndex]] || imgCache.zjwxt;
-    if (bhImg){
-      const bw = 110, bh = 7;
-      ctx.drawImage(bhImg, boss.x + boss.w/2 - bw/2, boss.y - 18, bw, bh);
+    const bossImg = imgCache[cfg.sprite] || imgCache.zjw1;
+    // P2 整体放大 + 光环
+    if (cfg.isP2){
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      const g = ctx.createRadialGradient(boss.x+boss.w/2, boss.y+boss.h/2, 8,
+        boss.x+boss.w/2, boss.y+boss.h/2, 120);
+      g.addColorStop(0, 'rgba(255,0,110,0.5)');
+      g.addColorStop(1, 'rgba(255,0,110,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(boss.x+boss.w/2, boss.y+boss.h/2, 120, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
     }
+    // 防御模式护盾光
+    if (boss.mode === MODE.DEFENSE){
+      ctx.save();
+      ctx.globalAlpha = 0.35 + 0.1*Math.sin(now/200);
+      ctx.strokeStyle = '#4dabf7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(boss.x+boss.w/2, boss.y+boss.h/2, boss.w*0.8, boss.h*0.58, 0, 0, Math.PI*2);
+      ctx.stroke();
+      ctx.restore();
+    }
+    drawImgCentered(bossImg, boss.x + boss.w/2, boss.y + boss.h/2,
+      cfg.isP2 ? boss.w*1.1 : boss.w,
+      cfg.isP2 ? boss.h*1.1 : boss.h,
+      false, 0, bossFlash);
+    // BOSS 头顶细分血条（Canvas 绘制，替代 zjwxt*.png）
+    const bw = 118, bh = 8;
+    drawBossMiniHp(boss.x + boss.w/2 - bw/2, boss.y - 20, bw, bh);
 
-    // 玩家（无敌时闪烁）
+    // 玩家（无敌闪烁）
     const invincible = now < player.invincibleUntil;
     const pFlash = now < player.flashUntil;
     let drawPlayer = true;
     if (invincible && Math.floor(now/80) % 2 === 0) drawPlayer = false;
     if (drawPlayer){
-      // 玩家素材原图是 60x120，正面朝右？假设面向右。根据 facing 翻转
       drawImgCentered(imgCache.qyj, player.x + player.w/2, player.y + player.h/2,
         player.w, player.h, player.facing < 0, 0, pFlash);
     }
-    // 玩家头上小血条
-    const pHpIndex = Math.max(0, Math.min(PLAYER_MAX_HP, PLAYER_MAX_HP - player.hp));
-    const pHpKeys = ['qyjxt','qyjxt1','qyjxt2'];
-    const phImg = imgCache[pHpKeys[pHpIndex]] || imgCache.qyjxt;
-    if (phImg){
-      const pw = 46, ph = 7;
-      ctx.drawImage(phImg, player.x + player.w/2 - pw/2, player.y - 14, pw, ph);
-    }
+    // 玩家头顶血条（Canvas 绘制，替代 qyjxt*.png）
+    const pw = 48, ph = 7;
+    drawPlayerMiniHp(player.x + player.w/2 - pw/2, player.y - 16, pw, ph);
 
-    // 子弹（素材 zd1/zd2 仅 3x3，适当放大以在移动端清晰可见）
-    for (const b of bullets){
-      const img = imgCache[b.kind] || imgCache.zd1;
-      const sz = b.w + 6;  // +6 放大渲染，约 10-11px
-      // 子弹尾焰光晕
-      ctx.save();
-      ctx.globalAlpha = 0.45;
-      ctx.fillStyle = '#ffd43b';
-      ctx.beginPath();
-      ctx.arc(b.x + b.w/2, b.y + b.h/2, sz*0.8, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-      drawImgCentered(img, b.x + b.w/2, b.y + b.h/2, sz, sz);
-    }
-    // 肘击
+    // 子弹（纯 Canvas 绘制，替代 zd1/zd2.png）
+    for (const b of bullets) drawBullet(b);
+
+    // 肘击（P2 肘击加红色光晕）
     for (const z of zjAttacks){
+      if (z.p2){
+        ctx.save();
+        ctx.globalAlpha = 0.55;
+        const g = ctx.createRadialGradient(z.x+z.w/2, z.y+z.h/2, 2,
+          z.x+z.w/2, z.y+z.h/2, z.w*1.2);
+        g.addColorStop(0, 'rgba(255,0,110,0.85)');
+        g.addColorStop(1, 'rgba(255,0,110,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(z.x+z.w/2, z.y+z.h/2, z.w*1.2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.restore();
+      }
       drawImgCentered(imgCache.zj, z.x + z.w/2, z.y + z.h/2, z.w*1.4, z.h*1.4, z.vx<0, z.rot);
     }
+
     // 粒子
     for (const p of particles){
       const t = 1 - (now - p.born) / p.life;
@@ -871,6 +1334,9 @@
       ctx.fillRect(p.x, p.y, p.size, p.size);
     }
     ctx.globalAlpha = 1;
+
+    // 阶段切换横幅
+    drawBanner(now);
   }
 
   // ---------- 主循环 ----------
@@ -895,17 +1361,28 @@
     playerHud.style.display = 'flex';
     controls.style.display = 'flex';
   }
-  function endGame(win){
+  function endGame(win, reason){
     gameState = win ? STATE.WIN : STATE.LOSE;
     const elapsed = ((performance.now() - gameStartTime)/1000).toFixed(1);
     statTime.textContent = elapsed + 's';
     statHit.textContent  = hitCount + '';
-    endTitle.textContent = win ? '胜 利 ！' : '战 斗 失 败';
     endTitle.classList.toggle('win',  win);
     endTitle.classList.toggle('lose', !win);
-    endSub.textContent = win
-      ? '肘击王被击败！起义军获得了史诗级胜利！'
-      : '肘击王的力量太强大了，再试一次吧！';
+    if (win){
+      endTitle.textContent = '胜 利 ！';
+      endSub.textContent = '你击败了觉醒的肘击王！起义军改写了历史。';
+    } else {
+      endTitle.textContent = '战 斗 失 败';
+      let desc = '肘击王的力量太强大了，再试一次吧！';
+      if (reason === '触碰肘击王被秒杀'){
+        desc = '💥 你撞上了肘击王，被一击秒杀！千万别靠近他！';
+      } else if (reason === '阶段2肘击一击必杀'){
+        desc = '🔥 二阶段的肘击一击必杀！不要被任何一发肘击碰到！';
+      } else if (reason === '被肘击命中'){
+        desc = '肘击打中了你！两次肘击就是你的极限！';
+      }
+      endSub.textContent = desc;
+    }
     endOverlay.classList.remove('hidden');
     hud.style.display = 'none';
     playerHud.style.display = 'none';
@@ -929,11 +1406,18 @@
     pressJump(){ input.jump = true; input.jumpPressed = true; btnJump.classList.add('pressed'); setTimeout(()=>{ input.jump=false; btnJump.classList.remove('pressed'); }, 120); },
     setMove(x,y){ input.moveX = x; input.moveY = y; },
     get player(){ return { ...player }; },
-    get boss(){ return { ...boss, hpMax: BOSS_MAX_HP }; },
+    get boss(){ return {
+      phase: boss.phase, mode: boss.mode,
+      hp: boss.hp, hpMax: boss.hpMax, cellHits: boss.cellHits,
+      hitsPerHp: currentBossCfg().hitsPerHp,
+      x: boss.x, y: boss.y, w: boss.w, h: boss.h,
+      defenseTriggered: boss.defenseTriggered,
+    };},
     get bulletsCount(){ return bullets.length; },
     get zjCount(){ return zjAttacks.length; },
     get hitCount(){ return hitCount; },
     get elapsed(){ return ((performance.now() - gameStartTime)/1000).toFixed(2)+'s'; },
+    get banner(){ return { text: banner.text, until: banner.until }; },
   };
 
 })();
