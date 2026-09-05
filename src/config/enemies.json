@@ -1,0 +1,14 @@
+{
+  "trash": [
+    { "id": "paperling", "name": "纸片人", "hp": 2, "speed": 0.8, "goldMin": 5, "goldMax": 10, "attack": "ink_shot", "attackCd": 2000, "color": "#f8f9fa", "size": 28 },
+    { "id": "redmarker", "name": "红叉兵", "hp": 4, "speed": 1.6, "goldMin": 8, "goldMax": 15, "attack": "rush_and_throw", "attackCd": 2500, "color": "#fa5252", "size": 34 },
+    { "id": "inkdrop", "name": "墨滴", "hp": 1, "speed": 2.2, "goldMin": 3, "goldMax": 8, "attack": "contact_slow", "attackCd": 0, "color": "#212529", "size": 20 },
+    { "id": "paperplane", "name": "纸飞机", "hp": 2, "speed": 3.0, "goldMin": 5, "goldMax": 12, "attack": "dive_wave", "attackCd": 3000, "color": "#e9ecef", "size": 24 }
+  ],
+  "elite": [
+    { "id": "bellringer", "name": "铃铛手", "hp": 3, "speed": 2.5, "goldMin": 30, "goldMax": 40, "attack": "noise_aura", "attackCd": 0, "color": "#ffd43b", "size": 30, "flee": true },
+    { "id": "stackpile", "name": "堆积体", "hp": 6, "speed": 0.6, "goldMin": 35, "goldMax": 50, "attack": "none", "attackCd": 0, "color": "#495057", "size": 40, "split": true },
+    { "id": "echo", "name": "回声", "hp": 5, "speed": 1.4, "goldMin": 30, "goldMax": 45, "attack": "mimic_shot", "attackCd": 2200, "color": "#aab0ff", "size": 30 },
+    { "id": "corrector", "name": "批改者", "hp": 8, "speed": 1.2, "goldMin": 40, "goldMax": 60, "attack": "red_arc", "attackCd": 1800, "color": "#c92a2a", "size": 38 }
+  ]
+}

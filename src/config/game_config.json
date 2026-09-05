@@ -1,0 +1,17 @@
+{
+  "logicWidth": 960,
+  "logicHeight": 540,
+  "groundY": 460,
+  "gravity": 0,
+  "playerMoveSpeed": 3.4,
+  "jumpVelocity": -14.5,
+  "bulletSpeed": 9.5,
+  "fireCooldownMs": 180,
+  "playerInvincibleMs": 900,
+  "maxHp": 2,
+  "chapters": [
+    { "id": "C1", "name": "走廊", "subAreas": ["C1-A", "C1-B"], "color": "#2a1a3a", "miniBoss": "reader", "stageBoss": "bulletin" },
+    { "id": "C2", "name": "深处", "subAreas": ["C2-A", "C2-B"], "color": "#3a1a2e", "miniBoss": "timer", "stageBoss": "tribunal" },
+    { "id": "C3", "name": "最终战场", "subAreas": ["C3"], "color": "#1a1410", "miniBoss": "ranking", "stageBoss": null }
+  ]
+}

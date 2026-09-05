@@ -1,0 +1,11 @@
+[
+  { "id": "ink_bottle", "name": "墨水瓶", "effect": "next3BonusDamage", "value": 0.5, "rarity": "普通", "desc": "下 3 发子弹伤害 +50%", "color": "#1a1a1a" },
+  { "id": "red_pen", "name": "红笔", "effect": "next5Crit", "value": 1, "rarity": "稀有", "desc": "下 5 发子弹必定暴击", "color": "#fa5252" },
+  { "id": "draft_paper", "name": "草稿纸", "effect": "reviveOnce", "value": 1, "rarity": "稀有", "desc": "受到致命伤害时存活并剩 1 血", "color": "#e9ecef" },
+  { "id": "eraser", "name": "橡皮擦", "effect": "clearDebuff", "value": 1, "rarity": "普通", "desc": "清除当前所有负面状态", "color": "#ffd43b" },
+  { "id": "stamp", "name": "印章", "effect": "invincible", "value": 3000, "rarity": "史诗", "desc": "短暂无敌 3 秒", "color": "#cc5de8" },
+  { "id": "shredded_paper", "name": "碎纸", "effect": "slowZone", "value": 1, "rarity": "普通", "desc": "在当前位置放置减速区域", "color": "#adb5bd" },
+  { "id": "paperclip", "name": "回形针", "effect": "heal1", "value": 1, "rarity": "普通", "desc": "回复 1 格血", "color": "#ced4da" },
+  { "id": "paperweight", "name": "压纸石", "effect": "shield1", "value": 1, "rarity": "稀有", "desc": "获得临时护盾，抵挡 1 次攻击", "color": "#495057" },
+  { "id": "faith", "name": "信念", "effect": "attackDouble", "value": 2, "rarity": "传说", "desc": "攻击力翻倍，承载着所有人的希望", "color": "#fff3bf" }
+]

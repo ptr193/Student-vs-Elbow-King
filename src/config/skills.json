@@ -1,0 +1,16 @@
+{
+  "passive": [
+    { "id": "haste", "name": "急速", "effect": "moveSpeed", "value": 1.2, "desc": "移动速度 +20%" },
+    { "id": "rapid_fire", "name": "连射", "effect": "fireRate", "value": 0.7, "desc": "射击间隔 -30%" },
+    { "id": "ballistics", "name": "弹道学", "effect": "bulletSpeed", "value": 1.3, "desc": "子弹速度 +30%" },
+    { "id": "tough", "name": "厚血", "effect": "maxHp", "value": 1, "desc": "最大血量 +1" },
+    { "id": "double_charge", "name": "二段蓄力", "effect": "jumpBonus", "value": 0.2, "desc": "二段跳高度 +20%" },
+    { "id": "resilience", "name": "韧性", "effect": "invincibleBonus", "value": 500, "desc": "受击无敌时间 +0.5s" }
+  ],
+  "bullets": [
+    { "id": "normal", "name": "普通弹", "damage": 1, "ammo": -1, "desc": "基础伤害，自动瞄准" },
+    { "id": "ink", "name": "墨迹弹", "damage": 1, "ammo": 20, "desc": "命中后留下持续伤害区域" },
+    { "id": "staple", "name": "钉书弹", "damage": 2, "ammo": 15, "desc": "命中后短暂定住敌人 1 秒" },
+    { "id": "red_cross", "name": "红叉弹", "damage": 4, "ammo": 8, "desc": "高伤害单发，穿透" }
+  ]
+}

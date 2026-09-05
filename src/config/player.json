@@ -1,0 +1,10 @@
+{
+  "width": 50,
+  "height": 96,
+  "moveSpeed": 3.4,
+  "jumpVelocity": -14.5,
+  "maxHp": 2,
+  "fireCooldownMs": 180,
+  "invincibleMs": 900,
+  "doubleJumpMultiplier": 0.85
+}

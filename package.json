@@ -1,0 +1,23 @@
+{
+  "name": "dazhanzhoujiwang",
+  "version": "1.0.0",
+  "description": "大战肘击王 - 俯视角硬核双摇杆射击肉鸽手游",
+  "type": "module",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cap:sync": "npx cap sync",
+    "android:debug": "vite build && npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0",
+    "@capacitor/cli": "^5.7.4",
+    "@capacitor/android": "^5.7.4",
+    "@capacitor/core": "^5.7.4"
+  }
+}

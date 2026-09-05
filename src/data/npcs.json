@@ -1,0 +1,22 @@
+[
+  { "id": "silent", "name": "沉默者", "gender": "女", "trait": "内向、坚韧", "betray": false, "color": "#adb5bd",
+    "rescue": "……谢谢你。我不会说话，但我看到了他们的弱点。肘击王……它不是一个人，是一台机器。",
+    "station": "肘击王的冲撞有规律，抓住它眩晕的瞬间全力输出。",
+    "reward": "info" },
+  { "id": "trader", "name": "交易员", "gender": "男", "trait": "务实、爽朗", "betray": false, "color": "#ffd43b",
+    "rescue": "嘿！谢了兄弟。我这儿有点好东西，用金币换。",
+    "station": "要买点什么吗？童叟无欺。",
+    "reward": "shop" },
+  { "id": "top_student", "name": "尖子生", "gender": "男", "trait": "傲慢、自视甚高", "betray": true, "color": "#74c0fc",
+    "rescue": "哼，就你？也配来打肘击王？我平时随便考考就比你强，你还得来救我，真讽刺。",
+    "station": "别以为救了我我就会感激你。肘击王的二阶段可不是闹着玩的，你这种水平……算了，提醒你一句，它冲撞前有预警。",
+    "reward": "info" },
+  { "id": "bystander", "name": "旁观者", "gender": "女", "trait": "冷漠、事不关己", "betray": true, "color": "#ced4da",
+    "rescue": "……哦，谢了。",
+    "station": "我就在旁边看着你打，反正你大概率打不过。哦对了，上次那个起义军也这么说来着。",
+    "reward": "info" },
+  { "id": "watchman", "name": "守望者", "gender": "女", "trait": "善良、有远见", "betray": false, "color": "#8ce99a",
+    "rescue": "谢谢你！我没有上战场，但我会在这里为每一个出征的人守望归途。这个给你，希望能帮到你。",
+    "station": "你不是一个人在战斗。我们都在你身后。",
+    "reward": "rare_item" }
+]

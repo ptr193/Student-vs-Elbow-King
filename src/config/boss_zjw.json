@@ -1,0 +1,24 @@
+{
+  "width": 90,
+  "height": 200,
+  "homeX": 750,
+  "phase1Hp": 6,
+  "phase2Hp": 6,
+  "phase1AttackCd": [820, 1200],
+  "phase1DefenseAttackCd": [430, 740],
+  "phase2AttackCd": [260, 440],
+  "phase1HitsPerHp": 2,
+  "phase1DefenseHitsPerHp": 6,
+  "phase2HitsPerHp": 5,
+  "zjSpeed": 4.3,
+  "phase2ZjSpeedMultiplier": 1.25,
+  "charge": {
+    "cooldownMs": [4200, 6500],
+    "prepareMs": 520,
+    "speed": 9.2,
+    "distancePct": 0.55,
+    "stunMs": 1400,
+    "missWaitMs": 500
+  },
+  "phase2OneHitKill": true
+}
