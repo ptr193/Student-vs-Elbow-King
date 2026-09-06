@@ -3,6 +3,11 @@ import gameConfig from '../config/game_config.json';
 import { Player } from '../entities/Player.js';
 import { BossZJW } from '../entities/BossZJW.js';
 import { MinibossReader } from '../entities/MinibossReader.js';
+import { MinibossTimer } from '../entities/MinibossTimer.js';
+import { MinibossChalkboard } from '../entities/MinibossChalkboard.js';
+import { MinibossRanking } from '../entities/MinibossRanking.js';
+import { StageBossBulletin } from '../entities/StageBossBulletin.js';
+import { StageBossTribunal } from '../entities/StageBossTribunal.js';
 import { Enemy } from '../entities/Enemy.js';
 import { Bullet, ZjAttack } from '../entities/Bullet.js';
 import { NPC } from '../entities/NPC.js';
@@ -10,6 +15,7 @@ import { RoguelikeSystem } from '../systems/RoguelikeSystem.js';
 import { ItemSystem } from '../systems/ItemSystem.js';
 import { GoldSystem } from '../systems/GoldSystem.js';
 import { SuccessionSystem } from '../systems/SuccessionSystem.js';
+import { CodexSystem } from '../systems/CodexSystem.js';
 import { MetaManager } from '../systems/SettingsManager.js';
 import npcsData from '../data/npcs.json';
 
@@ -59,6 +65,11 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, 60, this.groundY);
     // 应用随机被动技能
     this.player.applySkill(this.roguelike.passiveSkill);
+    // 应用永久信念之力
+    const meta = MetaManager.load();
+    if (meta.faithPower > 0) {
+      this.player.attackMultiplier *= (1 + meta.faithPower * 0.1);
+    }
 
     // BOSS 文本
     this.boss = null;
@@ -66,8 +77,14 @@ export class GameScene extends Phaser.Scene {
     this.bannerUntil = 0;
     this.bannerColor = '#ffd43b';
 
+    // 对话系统
+    this.dialogue = null; // { name, text, color }
+    this.dialogueActive = false;
+
     // 生成第一间房
     this.roguelike.generateRun();
+    // 应用传承
+    this._applySuccession();
     this._loadRoom();
 
     this.audio?.startBgm('battle');
@@ -104,8 +121,21 @@ export class GameScene extends Phaser.Scene {
     this.keys.item3.on('down', () => this._useItem(2));
     this.keys.special.on('down', () => this._switchBullet());
 
+    // 对话关闭：任意键或点击
+    this.input.keyboard.on('keydown', () => {
+      if (this.dialogueActive) this._closeDialogue();
+    });
+    this.input.on('pointerdown', () => {
+      if (this.dialogueActive) this._closeDialogue();
+    });
+
     // 触屏（简化版，单键射击+跳跃）
     this._setupTouchControls();
+  }
+
+  _closeDialogue() {
+    this.dialogueActive = false;
+    this.dialogue = null;
   }
 
   _useItem(slot) {
@@ -118,11 +148,56 @@ export class GameScene extends Phaser.Scene {
   }
 
   _switchBullet() {
-    if (this.roguelike.specialAmmo > 0 && this.roguelike.specialBullet !== 'normal') {
-      this.roguelike.specialBullet = 'normal';
+    const rl = this.roguelike;
+    if (rl.specialAmmo > 0 && rl.specialBullet !== 'normal') {
+      rl.specialBullet = 'normal';
       this.showBanner('切换：普通弹', '#ffd43b');
+    } else if (rl.unlockedBullets && rl.unlockedBullets.length > 0) {
+      // 循环切换已解锁的特殊子弹
+      const unlocked = rl.unlockedBullets;
+      const idx = unlocked.indexOf(rl.specialBullet);
+      const next = unlocked[(idx + 1) % unlocked.length];
+      rl.specialBullet = next;
+      const def = this._bulletDef(next);
+      this.showBanner('切换：' + def.name, def.color || '#ffd43b');
     } else {
       this.showBanner('无特殊弹药', '#868e96');
+    }
+  }
+
+  _bulletDef(id) {
+    const defs = {
+      normal: { name: '普通弹', color: '#ffd43b' },
+      ink: { name: '墨迹弹', color: '#1a1a1a' },
+      staple: { name: '钉书弹', color: '#495057' },
+      red_cross: { name: '红叉弹', color: '#fa5252' },
+    };
+    return defs[id] || defs.normal;
+  }
+
+  _applySpecialBullet(b, target, x, y) {
+    if (!b.specialKind) return;
+    switch (b.specialKind) {
+      case 'ink': {
+        // 墨迹区域：持续伤害
+        const zone = {
+          x: x - 15, y: this.groundY - 8, w: 30, h: 16,
+          damage: 0.5, until: performance.now() + 3000, kind: 'ink',
+        };
+        this.inkZones = this.inkZones || [];
+        this.inkZones.push(zone);
+        break;
+      }
+      case 'staple': {
+        // 钉书弹：延迟敌人攻击
+        if (target.nextAttackAt) {
+          target.nextAttackAt = Math.max(target.nextAttackAt, performance.now()) + 2500;
+        } else if (target.attackCd) {
+          target._stunUntil = performance.now() + 1500;
+        }
+        break;
+      }
+      // red_cross 是高伤害穿透，在 _playerFire 中已处理
     }
   }
 
@@ -197,26 +272,24 @@ export class GameScene extends Phaser.Scene {
     const ch = this.roguelike.getCurrentChapter();
     this._bgColor = ch.color;
 
-    if (room.type === 'miniBoss' && ch.miniBoss === 'reader') {
-      this.boss = new MinibossReader(this, this.logicW * 0.7, 200);
-      this.showBanner('小 BOSS：读卡机', '#cc5de8');
+    if (room.type === 'miniBoss') {
+      const miniBossMap = {
+        reader: { cls: MinibossReader, name: '读卡机', color: '#cc5de8' },
+        timer: { cls: MinibossTimer, name: '计时器', color: '#aab0ff' },
+        chalkboard: { cls: MinibossChalkboard, name: '抄写板', color: '#ced4da' },
+        ranking: { cls: MinibossRanking, name: '排名表', color: '#ffd43b' },
+      };
+      const mb = miniBossMap[ch.miniBoss];
+      if (mb) {
+        this.boss = new mb.cls(this, this.logicW * 0.7, 200);
+        this.showBanner('小 BOSS：' + mb.name, mb.color);
+      }
     } else if (room.type === 'stageBoss' && ch.stageBoss === 'bulletin') {
-      // 通告板简化为强力杂兵群
-      const enemies = [
-        { id: 'redmarker', hp: 8, speed: 1.8, goldMin: 40, goldMax: 60, attack: 'rush_and_throw', attackCd: 1800, color: '#fa5252', size: 40, isElite: true },
-        { id: 'redmarker', hp: 8, speed: 1.8, goldMin: 40, goldMax: 60, attack: 'rush_and_throw', attackCd: 1800, color: '#fa5252', size: 40, isElite: true },
-        { id: 'corrector', hp: 10, speed: 1.2, goldMin: 50, goldMax: 70, attack: 'red_arc', attackCd: 1600, color: '#c92a2a', size: 42, isElite: true },
-      ];
-      enemies.forEach((e, i) => this.enemies.push(new Enemy(this, e, this.logicW * 0.6 + i * 60, 200 + i * 40)));
+      this.boss = new StageBossBulletin(this, this.logicW * 0.7, 150);
       this.showBanner('关卡 BOSS：通告板', '#ffd43b');
     } else if (room.type === 'stageBoss' && ch.stageBoss === 'tribunal') {
-      const enemies = [
-        { id: 'corrector', hp: 12, speed: 1.3, goldMin: 50, goldMax: 70, attack: 'red_arc', attackCd: 1500, color: '#c92a2a', size: 44, isElite: true },
-        { id: 'echo', hp: 8, speed: 1.5, goldMin: 40, goldMax: 60, attack: 'mimic_shot', attackCd: 2000, color: '#aab0ff', size: 36, isElite: true },
-        { id: 'stackpile', hp: 10, speed: 0.7, goldMin: 50, goldMax: 70, attack: 'none', attackCd: 0, color: '#495057', size: 46, isElite: true },
-      ];
-      enemies.forEach((e, i) => this.enemies.push(new Enemy(this, e, this.logicW * 0.6 + i * 60, 200 + i * 40)));
-      this.showBanner('关卡 BOSS：审判台', '#ff6b6b');
+      this.boss = new StageBossTribunal(this, this.logicW * 0.7, 150);
+      this.showBanner('关卡 BOSS：审判台', '#cc5de8');
     } else if (ch.id === 'C3' && room.room === this.roguelike.roomsPerSubArea - 1) {
       // 最终 BOSS 肘击王（C3 最后一间）
       this.boss = new BossZJW(this, this.logicW * 0.75, this.groundY + 80 - 200);
@@ -229,6 +302,16 @@ export class GameScene extends Phaser.Scene {
       const enemies = this.roguelike.spawnEnemiesForRoom(room);
       enemies.forEach((e, i) => {
         this.enemies.push(new Enemy(this, e, this.logicW * 0.5 + (i % 3) * 80, 150 + Math.floor(i / 3) * 80));
+        // 图鉴记录
+        const enemyDesc = {
+          redmarker: '红笔卫：用红笔圈出你的错误。',
+          corrector: '修正者：擦掉你的答案，写上它的。',
+          echo: '回声：模仿你的每一个动作。',
+          stackpile: '堆卷怪：试卷堆成的怪物，沉重而缓慢。',
+        };
+        if (enemyDesc[e.id]) {
+          CodexSystem.recordEnemy(e.id, e.id, enemyDesc[e.id]);
+        }
       });
       // 道具房
       if (room.type === 'item') {
@@ -253,6 +336,9 @@ export class GameScene extends Phaser.Scene {
     if (this.paused || this.gameOver) return;
     const now = performance.now();
 
+    // 对话进行中：暂停游戏
+    if (this.dialogueActive) return;
+
     // 键盘轮询
     if (this.keys.left.isDown) this.inputState.moveX = -1;
     else if (this.keys.right.isDown) this.inputState.moveX = 1;
@@ -269,6 +355,23 @@ export class GameScene extends Phaser.Scene {
 
     // 敌人
     this.enemies.forEach(e => e.update(this.player, now));
+
+    // 墨迹区域
+    if (this.inkZones) {
+      this.inkZones = this.inkZones.filter(z => now < z.until);
+      for (const z of this.inkZones) {
+        // 伤害 BOSS
+        if (this.boss && !this.boss.defeated) {
+          const bb = this.boss.getHitBox();
+          if (this._rectHit(z, bb)) this.boss.takeHit(now);
+        }
+        // 伤害敌人
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          if (this._rectHit(z, e.getHitBox())) e.takeHit(now, z.damage);
+        }
+      }
+    }
     this.enemies = this.enemies.filter(e => !e.dead);
 
     // 玩家子弹
@@ -300,7 +403,12 @@ export class GameScene extends Phaser.Scene {
         if (Math.abs(this.player.x + this.player.w / 2 - d.x) < 40 && Math.abs(this.player.y - d.y) < 60) {
           if (this.itemSys.addItem(d.id)) {
             this.audio?.pickup();
-            this.showBanner('获得道具', '#51cf66');
+            this.showBanner('获得道具：' + d.id, '#51cf66');
+            // 图鉴记录
+            const def = this.itemSys.items.find(it => it.id === d.id);
+            if (def) {
+              CodexSystem.recordItem(d.id, def.name || d.id, def.desc || def.effect || '');
+            }
           }
           this.itemDrops.splice(i, 1);
         }
@@ -311,9 +419,13 @@ export class GameScene extends Phaser.Scene {
     this.npcs.forEach(n => {
       if (!n.interacted && this._rectHit(this.player, n.getHitBox())) {
         n.interacted = true;
-        this.showBanner(n.def.rescue, n.def.color);
         this.audio?.pickup();
+        // 图鉴记录
+        CodexSystem.recordNPC(n.def.id, n.def.name, n.def.rescue);
         if (n.def.reward === 'rare_item') this._spawnItemDrop(n.x, n.y - 30);
+        // 触发对话
+        this.dialogue = { name: n.def.name, text: n.def.rescue, color: n.def.color };
+        this.dialogueActive = true;
       }
     });
 
@@ -324,7 +436,7 @@ export class GameScene extends Phaser.Scene {
         this._nextRoom();
       }
     } else if (room && room.type === 'stageBoss') {
-      if (this.enemies.length === 0 && !this.bossDefeated.has(room.type + room.chapter)) {
+      if ((!this.boss || this.boss.defeated) && !this.bossDefeated.has(room.type + room.chapter)) {
         this.bossDefeated.add(room.type + room.chapter);
         this._onStageBossDefeated();
       }
@@ -361,6 +473,16 @@ export class GameScene extends Phaser.Scene {
     ctx.fillRect(0, this.groundY + 48, W, H - this.groundY - 48);
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
     ctx.fillRect(0, this.groundY + 48, W, 2);
+
+    // 墨迹区域
+    if (this.inkZones) {
+      for (const z of this.inkZones) {
+        ctx.fillStyle = 'rgba(26,26,26,0.7)';
+        ctx.fillRect(z.x, z.y, z.w, z.h);
+        ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+        ctx.strokeRect(z.x, z.y, z.w, z.h);
+      }
+    }
 
     // 道具掉落
     if (this.itemDrops) {
@@ -431,7 +553,14 @@ export class GameScene extends Phaser.Scene {
       ctx.fillStyle = '#fff';
       ctx.font = 'bold 14px sans-serif';
       ctx.textAlign = 'center';
-      const name = this.boss instanceof BossZJW ? '肘击王' : '读卡机';
+      const name = this.boss instanceof BossZJW ? '肘击王'
+        : this.boss instanceof MinibossReader ? '读卡机'
+        : this.boss instanceof MinibossTimer ? '计时器'
+        : this.boss instanceof MinibossChalkboard ? '抄写板'
+        : this.boss instanceof MinibossRanking ? '排名表'
+        : this.boss instanceof StageBossBulletin ? '通告板'
+        : this.boss instanceof StageBossTribunal ? '审判台'
+        : 'BOSS';
       ctx.fillText(name + ' · P' + this.boss.phase, W / 2, by - 6);
       ctx.textAlign = 'left';
     }
@@ -448,11 +577,71 @@ export class GameScene extends Phaser.Scene {
       ctx.globalAlpha = 1;
     }
 
+    // 对话框
+    if (this.dialogueActive && this.dialogue) {
+      const d = this.dialogue;
+      const boxX = W * 0.1, boxY = H * 0.62, boxW = W * 0.8, boxH = H * 0.3;
+      // 半透明遮罩
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(0, 0, W, H);
+      // 对话框背景
+      ctx.fillStyle = 'rgba(20,22,40,0.95)';
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = d.color || '#ffd43b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      // 名字
+      ctx.fillStyle = d.color || '#ffd43b';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(d.name, boxX + 16, boxY + 32);
+      // 分割线
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(boxX + 16, boxY + 42);
+      ctx.lineTo(boxX + boxW - 16, boxY + 42);
+      ctx.stroke();
+      // 对话文本（自动换行）
+      ctx.fillStyle = '#dee2e6';
+      ctx.font = '16px sans-serif';
+      const textX = boxX + 16, textY = boxY + 60, maxW = boxW - 32;
+      const lines = this._wrapText(ctx, d.text, maxW);
+      lines.forEach((line, i) => {
+        ctx.fillText(line, textX, textY + i * 22);
+      });
+      // 提示
+      ctx.fillStyle = '#868e96';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('点击或按键继续', boxX + boxW - 16, boxY + boxH - 12);
+      ctx.textAlign = 'left';
+    }
+
     this.worldTex.refresh();
+  }
+
+  _wrapText(ctx, text, maxWidth) {
+    const chars = text.split('');
+    const lines = [];
+    let line = '';
+    for (const ch of chars) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = ch;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
   }
 
   _playerFire(now) {
     if (now - this.player.lastFireAt < gameConfig.fireCooldownMs * this.player.fireRateMult) return;
+    const rl = this.roguelike;
+    const isSpecial = rl.specialBullet !== 'normal' && rl.specialAmmo > 0;
     this.player.lastFireAt = now;
     const bx = this.player.x + this.player.w - 4;
     const by = this.player.y + 18;
@@ -461,6 +650,33 @@ export class GameScene extends Phaser.Scene {
     const dx = targetX - bx, dy = targetY - by;
     const L = Math.hypot(dx, dy) || 1;
     let damage = 1 * this.player.attackMultiplier;
+    let bulletColor = '#ffd43b';
+    let pierce = false;
+    let specialKind = null;
+
+    if (isSpecial) {
+      rl.specialAmmo--;
+      switch (rl.specialBullet) {
+        case 'ink':
+          specialKind = 'ink';
+          bulletColor = '#1a1a1a';
+          break;
+        case 'staple':
+          specialKind = 'staple';
+          bulletColor = '#495057';
+          break;
+        case 'red_cross':
+          damage = 4 * this.player.attackMultiplier;
+          pierce = true;
+          bulletColor = '#fa5252';
+          break;
+      }
+      if (rl.specialAmmo <= 0) {
+        rl.specialBullet = 'normal';
+        this.showBanner('特殊弹药用尽，恢复普通弹', '#868e96');
+      }
+    }
+
     if (this.player.bonusShots > 0) {
       damage *= (1 + this.player.bonusDamage);
       this.player.bonusShots--;
@@ -471,7 +687,7 @@ export class GameScene extends Phaser.Scene {
     }
     const speed = gameConfig.bulletSpeed * this.player.bulletSpeedMult;
     this.playerBullets.push(new Bullet(this, bx, by, dx / L * speed, dy / L * speed, {
-      damage, color: this.player.critShots > 0 ? '#ff006e' : '#ffd43b',
+      damage, color: bulletColor, pierce, specialKind,
     }));
     this.audio?.shoot();
   }
@@ -492,9 +708,10 @@ export class GameScene extends Phaser.Scene {
       for (let i = this.playerBullets.length - 1; i >= 0; i--) {
         const b = this.playerBullets[i];
         if (this._rectHit(b, bbox)) {
-          this.playerBullets.splice(i, 1);
+          if (!b.pierce) this.playerBullets.splice(i, 1);
           this.boss.takeHit(now);
-          this._spawnParticles(b.x, b.y, '#ffd43b', 4);
+          this._applySpecialBullet(b, this.boss, b.x, b.y);
+          this._spawnParticles(b.x, b.y, b.color, 4);
           this.audio?.hit();
         }
       }
@@ -527,11 +744,12 @@ export class GameScene extends Phaser.Scene {
       for (const e of this.enemies) {
         if (e.dead) continue;
         if (this._rectHit(b, e.getHitBox())) {
-          this.playerBullets.splice(i, 1);
+          if (!b.pierce) this.playerBullets.splice(i, 1);
           e.takeHit(now, b.damage);
+          this._applySpecialBullet(b, e, b.x, b.y);
           this._spawnParticles(b.x, b.y, e.color, 3);
           this.audio?.hit();
-          break;
+          if (!b.pierce) break;
         }
       }
     }
@@ -539,11 +757,35 @@ export class GameScene extends Phaser.Scene {
     for (let i = this.enemyBullets.length - 1; i >= 0; i--) {
       const b = this.enemyBullets[i];
       if (this._rectHit(b, pBox)) {
-        this.enemyBullets.splice(i, 1);
+        // 地面区域不消失，持续伤害
+        if (!b.groundZone) {
+          this.enemyBullets.splice(i, 1);
+        }
         const died = this.player.takeDamage(now, b.damage);
+        // 定身效果
+        if (b.pinPlayer) {
+          this.player.stunUntil = now + 2000;
+          this.showBanner('被张贴定身！', '#fa5252');
+        }
         this._spawnParticles(this.player.x, this.player.y, '#fa5252', 6);
         this.audio?.hurt();
         if (died) this._onPlayerDeath();
+      }
+    }
+    // 玩家子弹 vs 计时器炸弹
+    if (this.boss instanceof MinibossTimer) {
+      for (let i = this.playerBullets.length - 1; i >= 0; i--) {
+        const b = this.playerBullets[i];
+        for (let j = this.boss.bombs.length - 1; j >= 0; j--) {
+          const bomb = this.boss.bombs[j];
+          if (bomb.exploded) continue;
+          if (Math.hypot(b.x - bomb.x, b.y - bomb.y) < 20) {
+            this.boss.bombs.splice(j, 1);
+            this.playerBullets.splice(i, 1);
+            this._spawnParticles(bomb.x, bomb.y, '#ffd43b', 6);
+            break;
+          }
+        }
       }
     }
     // 敌人接触
@@ -565,7 +807,46 @@ export class GameScene extends Phaser.Scene {
 
   onBossDefeated(bossId) {
     this.bossDefeated.add(bossId);
+    // 同时标记房间 BOSS 已击败，避免 update 循环重复触发
+    const room = this.roguelike.getCurrentRoom();
+    if (room && room.type === 'stageBoss') {
+      this.bossDefeated.add(room.type + room.chapter);
+    }
     this.audio?.bossDie();
+    // 图鉴记录
+    const bossLore = {
+      reader: '读卡机：吞掉试卷的铁兽，只认标准答案。',
+      timer: '计时器：滴答声中，时间被榨干。',
+      chalkboard: '抄写板：罚抄百遍，直到手指麻木。',
+      ranking: '排名表：数字的暴政，名次即命运。',
+      bulletin: '通告板：张贴的不是通知，是判决。',
+      tribunal: '审判台：你是否有罪，由它说了算。',
+      zjw: '肘击王：教学楼的绝对统治者，曾是你最敬仰的恩师。',
+    };
+    const names = {
+      reader: '读卡机', timer: '计时器', chalkboard: '抄写板',
+      ranking: '排名表', bulletin: '通告板', tribunal: '审判台', zjw: '肘击王',
+    };
+    if (bossLore[bossId]) {
+      CodexSystem.recordBoss(bossId, names[bossId] || bossId, bossLore[bossId]);
+    }
+    // 小 BOSS 击败奖励特殊子弹
+    const bulletRewards = {
+      reader: { bullet: 'ink', name: '墨迹弹', ammo: 10 },
+      timer: { bullet: 'staple', name: '钉书弹', ammo: 12 },
+      chalkboard: { bullet: 'staple', name: '钉书弹', ammo: 12 },
+      ranking: { bullet: 'red_cross', name: '红叉弹', ammo: 5 },
+    };
+    const reward = bulletRewards[bossId];
+    if (reward) {
+      const rl = this.roguelike;
+      if (!rl.unlockedBullets.includes(reward.bullet)) {
+        rl.unlockedBullets.push(reward.bullet);
+      }
+      rl.specialBullet = reward.bullet;
+      rl.specialAmmo = reward.ammo;
+      this.showBanner('获得特殊子弹：' + reward.name + ' × ' + reward.ammo, '#ffd43b');
+    }
     this.showBanner('击败 ' + (bossId === 'zjw' ? '肘击王' : bossId), '#51cf66');
     if (bossId === 'zjw') {
       // 击败肘击王，重置三败计数
@@ -573,8 +854,11 @@ export class GameScene extends Phaser.Scene {
       meta.threeDefeatCount = 0;
       MetaManager.save(meta);
       this._win();
+    } else if (bossId === 'bulletin' || bossId === 'tribunal') {
+      // 关卡 BOSS：由 _onStageBossDefeated 处理（含身份揭示）
+      this._onStageBossDefeated();
     } else {
-      setTimeout(() => this._nextRoom(), 1500);
+      setTimeout(() => this._nextRoom(), 1800);
     }
   }
 
@@ -584,6 +868,40 @@ export class GameScene extends Phaser.Scene {
       this.showBanner('身份揭示：你竟是……肘击王曾经的得意门生', '#ff006e');
     }
     setTimeout(() => this._nextRoom(), 2500);
+  }
+
+  _applySuccession() {
+    if (!this.succession.hasSuccessionPending()) return;
+    const data = this.succession.inherit();
+    if (!data) return;
+    // 继承道具
+    if (data.items && data.items.length) {
+      data.items.forEach(id => {
+        if (this.itemSys.inventory.length < 6) {
+          this.itemSys.addItem(id);
+        }
+      });
+    }
+    // 继承金币
+    if (data.gold) this.goldSys.setGold(data.gold);
+    // 继承被动技能
+    if (data.skills) {
+      this.roguelike.passiveSkill = data.skills;
+      this.player.applySkill(data.skills);
+    }
+    // 继承特殊子弹
+    if (data.specialBullet && data.specialBullet !== 'normal' && data.specialAmmo > 0) {
+      this.roguelike.specialBullet = data.specialBullet;
+      this.roguelike.specialAmmo = data.specialAmmo;
+      if (!this.roguelike.unlockedBullets.includes(data.specialBullet)) {
+        this.roguelike.unlockedBullets.push(data.specialBullet);
+      }
+    }
+    // 继承信念（攻击加成）
+    if (data.hasFaith) {
+      this.player.attackMultiplier *= 1.5;
+    }
+    this.showBanner('传承已激活', '#cc5de8');
   }
 
   _nextRoom() {
@@ -625,7 +943,7 @@ export class GameScene extends Phaser.Scene {
     };
     this.succession.onDeath(snapshot);
     this.scene.stop('UIScene');
-    this.scene.start('End', { win: false, succession: true });
+    this.scene.start('Succession');
   }
 
   _threeDefeat() {

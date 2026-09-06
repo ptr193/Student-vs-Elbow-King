@@ -13,6 +13,7 @@ export class RoguelikeSystem {
     this.passiveSkill = null;
     this.specialBullet = 'normal';
     this.specialAmmo = 0;
+    this.unlockedBullets = [];
   }
 
   generateRun() {
@@ -22,6 +23,7 @@ export class RoguelikeSystem {
     this.passiveSkill = this._randomPick(skillsData.passive);
     this.specialBullet = 'normal';
     this.specialAmmo = 0;
+    this.unlockedBullets = [];
     this._generateChapterRooms();
   }
 

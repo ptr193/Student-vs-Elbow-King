@@ -81,7 +81,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _showCodex() {
-    this._showModal('图鉴', '遭遇敌人后解锁。\n当前已击败：' + (this.meta.defeatedBosses?.length || 0) + ' 个 BOSS');
+    this.scene.start('Codex');
   }
 
   _showSettings() {
