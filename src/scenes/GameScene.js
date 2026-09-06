@@ -16,8 +16,11 @@ import { ItemSystem } from '../systems/ItemSystem.js';
 import { GoldSystem } from '../systems/GoldSystem.js';
 import { SuccessionSystem } from '../systems/SuccessionSystem.js';
 import { CodexSystem } from '../systems/CodexSystem.js';
+import { NarrativeSystem } from '../systems/NarrativeSystem.js';
+import { RecordManager } from '../systems/RecordManager.js';
 import { MetaManager } from '../systems/SettingsManager.js';
 import npcsData from '../data/npcs.json';
+import departureLines from '../data/departure_lines.json';
 
 export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
@@ -80,12 +83,20 @@ export class GameScene extends Phaser.Scene {
     // 对话系统
     this.dialogue = null; // { name, text, color }
     this.dialogueActive = false;
+    this.runStartTime = performance.now();
 
     // 生成第一间房
     this.roguelike.generateRun();
     // 应用传承
     this._applySuccession();
     this._loadRoom();
+
+    // 出发台词（首任才有）
+    if (!this.succession.hasSuccessionPending()) {
+      const line = departureLines[Math.floor(Math.random() * departureLines.length)];
+      this.dialogue = { name: '出发', text: line, color: '#ffd43b' };
+      this.dialogueActive = true;
+    }
 
     this.audio?.startBgm('battle');
 
@@ -122,11 +133,22 @@ export class GameScene extends Phaser.Scene {
     this.keys.special.on('down', () => this._switchBullet());
 
     // 对话关闭：任意键或点击
-    this.input.keyboard.on('keydown', () => {
-      if (this.dialogueActive) this._closeDialogue();
+    this.input.keyboard.on('keydown', (event) => {
+      if (this.dialogueActive) {
+        if (this.shopActive) {
+          // 商店模式
+          const key = event.key;
+          if (key === '1') this._buyShopItem(0);
+          else if (key === '2') this._buyShopItem(1);
+          else if (key === '3') this._buyShopItem(2);
+          else if (key === 'Escape') this._closeShop();
+        } else {
+          this._closeDialogue();
+        }
+      }
     });
     this.input.on('pointerdown', () => {
-      if (this.dialogueActive) this._closeDialogue();
+      if (this.dialogueActive && !this.shopActive) this._closeDialogue();
     });
 
     // 触屏（简化版，单键射击+跳跃）
@@ -136,6 +158,60 @@ export class GameScene extends Phaser.Scene {
   _closeDialogue() {
     this.dialogueActive = false;
     this.dialogue = null;
+  }
+
+  _openShop(npcDef) {
+    // 生成随机商品
+    const allItems = this.itemSys.items;
+    const shopItems = [];
+    const pool = allItems.filter(i => i.rarity !== 'epic');
+    for (let i = 0; i < 3 && pool.length > 0; i++) {
+      const idx = Math.floor(Math.random() * pool.length);
+      const item = pool[idx];
+      const price = item.rarity === 'rare' ? 120 : 50 + Math.floor(Math.random() * 40);
+      shopItems.push({ id: item.id, name: item.name || item.id, price, effect: item.effect });
+      pool.splice(idx, 1);
+    }
+    this.shop = { items: shopItems, npcName: npcDef.name };
+    this.shopActive = true;
+    // 暂停游戏
+    this.dialogueActive = true;
+  }
+
+  _buyShopItem(idx) {
+    if (!this.shop || idx >= this.shop.items.length) return;
+    const item = this.shop.items[idx];
+    if (this.itemSys.inventory.length >= this.itemSys.maxSlots) {
+      this.showBanner('道具栏已满！', '#fa5252');
+      return;
+    }
+    if (this.goldSys.spend(item.price)) {
+      this.itemSys.addItem(item.id);
+      this.audio?.gold();
+      this.showBanner('购得：' + item.name, '#51cf66');
+      this.shop.items.splice(idx, 1);
+      if (this.shop.items.length === 0) {
+        this.shopActive = false;
+        this.shop = null;
+        this.dialogueActive = false;
+      }
+    } else {
+      this.showBanner('金币不足！', '#fa5252');
+    }
+  }
+
+  _closeShop() {
+    this.shopActive = false;
+    this.shop = null;
+    this.dialogueActive = false;
+  }
+
+  narrativeTrigger(fragmentId) {
+    NarrativeSystem.trigger(this, fragmentId);
+  }
+
+  recordPoem() {
+    RecordManager.recordPoem();
   }
 
   _useItem(slot) {
@@ -263,11 +339,14 @@ export class GameScene extends Phaser.Scene {
     this.playerBullets = [];
     this.enemyBullets = [];
     this.zjAttacks = [];
+    this.inkZones = [];
     this.player.x = 60;
     this.player.y = this.groundY;
     // 房间初始无敌，避免刚出生就被秒
     this.player.invincibleUntil = performance.now() + 3000;
     this.player.flashUntil = performance.now() + 3000;
+    // 房间门状态
+    this.roomCleared = room.type === 'item' || room.type === 'rest' || room.type === 'special' || room.cleared;
 
     const ch = this.roguelike.getCurrentChapter();
     this._bgColor = ch.color;
@@ -346,6 +425,10 @@ export class GameScene extends Phaser.Scene {
 
     // 玩家
     this.player.update(this.inputState, delta, this.groundY);
+    // 门锁限制
+    if (!this.roomCleared && this.player.x > this.logicW - 60) {
+      this.player.x = this.logicW - 60;
+    }
 
     // 射击
     if (this.inputState.fire) this._playerFire(now);
@@ -423,9 +506,14 @@ export class GameScene extends Phaser.Scene {
         // 图鉴记录
         CodexSystem.recordNPC(n.def.id, n.def.name, n.def.rescue);
         if (n.def.reward === 'rare_item') this._spawnItemDrop(n.x, n.y - 30);
-        // 触发对话
-        this.dialogue = { name: n.def.name, text: n.def.rescue, color: n.def.color };
-        this.dialogueActive = true;
+        // 交易员：打开交易界面
+        if (n.def.reward === 'shop') {
+          this._openShop(n.def);
+        } else {
+          // 触发对话
+          this.dialogue = { name: n.def.name, text: n.def.rescue, color: n.def.color };
+          this.dialogueActive = true;
+        }
       }
     });
 
@@ -433,7 +521,9 @@ export class GameScene extends Phaser.Scene {
     const room = this.roguelike.getCurrentRoom();
     if (room && (room.type === 'battle' || room.type === 'trap')) {
       if (this.enemies.length === 0) {
-        this._nextRoom();
+        this.roomCleared = true;
+        room.cleared = true;
+        this.showBanner('房间清空！→ 继续', '#51cf66');
       }
     } else if (room && room.type === 'stageBoss') {
       if ((!this.boss || this.boss.defeated) && !this.bossDefeated.has(room.type + room.chapter)) {
@@ -448,6 +538,12 @@ export class GameScene extends Phaser.Scene {
         this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1);
         room.type = 'cleared';
       }
+    }
+
+    // 玩家走到门口进入下一间
+    if (this.roomCleared && this.player.x > this.logicW - 50) {
+      this._nextRoom();
+      return;
     }
 
     this._renderWorld();
@@ -473,6 +569,26 @@ export class GameScene extends Phaser.Scene {
     ctx.fillRect(0, this.groundY + 48, W, H - this.groundY - 48);
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
     ctx.fillRect(0, this.groundY + 48, W, 2);
+
+    // 门（右侧出口）
+    const doorX = W - 30;
+    if (this.roomCleared) {
+      // 门打开 - 绿色光门
+      ctx.fillStyle = 'rgba(81,207,102,0.3)';
+      ctx.fillRect(doorX - 20, 0, 50, this.groundY + 48);
+      ctx.fillStyle = '#51cf66';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('→', doorX, this.groundY * 0.5);
+      ctx.textAlign = 'left';
+    } else {
+      // 门关闭 - 红色锁门
+      ctx.fillStyle = 'rgba(250,82,82,0.2)';
+      ctx.fillRect(doorX - 20, 0, 40, this.groundY + 48);
+      ctx.strokeStyle = 'rgba(250,82,82,0.5)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(doorX - 20, 0, 40, this.groundY + 48);
+    }
 
     // 墨迹区域
     if (this.inkZones) {
@@ -615,6 +731,72 @@ export class GameScene extends Phaser.Scene {
       ctx.font = '12px sans-serif';
       ctx.textAlign = 'right';
       ctx.fillText('点击或按键继续', boxX + boxW - 16, boxY + boxH - 12);
+      ctx.textAlign = 'left';
+    }
+
+    // 交易界面
+    if (this.shopActive && this.shop) {
+      const s = this.shop;
+      const boxX = W * 0.15, boxY = H * 0.15, boxW = W * 0.7, boxH = H * 0.7;
+      // 遮罩
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, W, H);
+      // 面板
+      ctx.fillStyle = 'rgba(30,28,50,0.97)';
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = '#ffd43b';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+      // 标题
+      ctx.fillStyle = '#ffd43b';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(s.npcName + ' 的商店', W / 2, boxY + 32);
+      // 金币
+      ctx.fillStyle = '#fcc419';
+      ctx.font = '16px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText('持有金币：' + this.goldSys.getGold(), boxX + boxW - 16, boxY + 32);
+      ctx.textAlign = 'left';
+
+      // 商品列表
+      if (s.items.length === 0) {
+        ctx.fillStyle = '#868e96';
+        ctx.font = '18px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('商品已售罄', W / 2, boxY + boxH / 2);
+      } else {
+        s.items.forEach((item, i) => {
+          const iy = boxY + 60 + i * 70;
+          // 商品背景
+          ctx.fillStyle = 'rgba(255,255,255,0.05)';
+          ctx.fillRect(boxX + 16, iy, boxW - 32, 56);
+          ctx.strokeStyle = 'rgba(255,212,59,0.3)';
+          ctx.lineWidth = 1;
+          ctx.strokeRect(boxX + 16, iy, boxW - 32, 56);
+          // 名称
+          ctx.fillStyle = '#f8f9fa';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(item.name, boxX + 32, iy + 24);
+          // 效果
+          ctx.fillStyle = '#adb5bd';
+          ctx.font = '13px sans-serif';
+          ctx.fillText('效果：' + (item.effect || '—'), boxX + 32, iy + 44);
+          // 价格
+          ctx.fillStyle = '#fcc419';
+          ctx.font = 'bold 18px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(item.price + ' 金币', boxX + boxW - 32, iy + 24);
+          ctx.textAlign = 'left';
+        });
+      }
+
+      // 操作提示
+      ctx.fillStyle = '#868e96';
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('按 1/2/3 购买商品，ESC 离开', W / 2, boxY + boxH - 16);
       ctx.textAlign = 'left';
     }
 
@@ -848,6 +1030,18 @@ export class GameScene extends Phaser.Scene {
       this.showBanner('获得特殊子弹：' + reward.name + ' × ' + reward.ammo, '#ffd43b');
     }
     this.showBanner('击败 ' + (bossId === 'zjw' ? '肘击王' : bossId), '#51cf66');
+    // 触发剧情碎片
+    const fragmentMap = {
+      reader: 'reader_defeated',
+      timer: 'timer_defeated',
+      chalkboard: 'chalkboard_defeated',
+      ranking: 'ranking_defeated',
+      bulletin: 'bulletin_defeated',
+      tribunal: 'tribunal_defeated',
+    };
+    if (fragmentMap[bossId]) {
+      setTimeout(() => NarrativeSystem.trigger(this, fragmentMap[bossId]), 600);
+    }
     if (bossId === 'zjw') {
       // 击败肘击王，重置三败计数
       const meta = MetaManager.load();
@@ -913,6 +1107,9 @@ export class GameScene extends Phaser.Scene {
   _onPlayerDeath() {
     this.gameOver = true;
     this.audio?.defeat();
+    // 记录死亡
+    RecordManager.recordDeath();
+    RecordManager.addPlayTime(performance.now() - this.runStartTime);
     // 肘击王战失败计数（持久化到 meta，跨传承累计）
     if (this.boss instanceof BossZJW) {
       const meta = MetaManager.load();
@@ -955,6 +1152,7 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = true;
     this.won = true;
     this.audio?.victory();
+    RecordManager.recordVictory(performance.now() - this.runStartTime);
     this.scene.stop('UIScene');
     this.scene.start('End', { win: true });
   }

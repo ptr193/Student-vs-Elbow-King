@@ -85,19 +85,53 @@ export class UIScene extends Phaser.Scene {
 
   _createPauseOverlay() {
     const W = this.scale.width, H = this.scale.height;
+    const game = this.scene.get('Game');
     this.add.rectangle(0, 0, W, H, 0x000000, 0.7).setOrigin(0, 0);
-    this.add.text(W / 2, H * 0.3, '暂停', {
+    this.add.text(W / 2, H * 0.12, '暂停', {
       fontFamily: 'sans-serif', fontSize: '48px', color: '#ffd43b', fontStyle: 'bold',
     }).setOrigin(0.5);
-    this._addButton('继续', W / 2, H * 0.45, () => {
+
+    // 存活时间
+    if (game.runStartTime) {
+      const elapsed = Math.floor((performance.now() - game.runStartTime) / 1000);
+      const m = Math.floor(elapsed / 60), s = elapsed % 60;
+      this.add.text(W / 2, H * 0.22, '存活时间：' + m + ':' + String(s).padStart(2, '0'), {
+        fontFamily: 'sans-serif', fontSize: '18px', color: '#adb5bd',
+      }).setOrigin(0.5);
+    }
+
+    // 当前阶段
+    if (game.roguelike) {
+      const ch = game.roguelike.getCurrentChapter();
+      if (ch) {
+        this.add.text(W / 2, H * 0.27, '当前阶段：' + ch.id + ' · ' + ch.name, {
+          fontFamily: 'sans-serif', fontSize: '16px', color: '#868e96',
+        }).setOrigin(0.5);
+      }
+    }
+
+    // 已收集道具
+    if (game.itemSys && game.itemSys.inventory.length > 0) {
+      let y = H * 0.33;
+      this.add.text(W / 2, y, '已收集道具：', {
+        fontFamily: 'sans-serif', fontSize: '16px', color: '#ffd43b',
+      }).setOrigin(0.5);
+      y += 20;
+      const itemText = game.itemSys.inventory.map(i => i.id).join('、');
+      this.add.text(W / 2, y, itemText, {
+        fontFamily: 'sans-serif', fontSize: '14px', color: '#dee2e6', wordWrap: { width: W * 0.8 },
+      }).setOrigin(0.5);
+    }
+
+    this._addButton('继续', W / 2, H * 0.5, () => {
       const game = this.scene.get('Game');
       game.paused = false;
       this.scene.stop('UIScene');
       this.scene.resume('Game');
       this.scene.launch('UIScene');
     });
-    this._addButton('设置', W / 2, H * 0.55, () => {});
-    this._addButton('返回主菜单', W / 2, H * 0.65, () => {
+    this._addButton('设置', W / 2, H * 0.6, () => {});
+    this._addButton('返回主菜单', W / 2, H * 0.7, () => {
       this.scene.stop('Game');
       this.scene.stop('UIScene');
       this.scene.start('Menu');

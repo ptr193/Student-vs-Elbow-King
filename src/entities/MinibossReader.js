@@ -151,6 +151,8 @@ export class MinibossReader {
       this.scene.audio?.quizCorrect();
       this.stunUntil = now + 3000;
       this.scene.showBanner('答对了！挣脱抓取', '#51cf66');
+      // 记录背诵诗句
+      if (this.scene.recordPoem) this.scene.recordPoem();
       // 玩家短暂加速
       this.scene.player.slowUntil = 0;
     } else {

@@ -178,6 +178,10 @@ export class BossZJW {
     this.x = this.homeX;
     this.y = this.homeY;
     this.dir = -1;
+    // 触发阶段切换剧情
+    if (this.scene.narrativeTrigger) {
+      this.scene.narrativeTrigger('zjw_phase2');
+    }
     this.chargeState = CHARGE.IDLE;
     this.chargeOriginX = this.homeX;
     this.chargeMaxDistance = (this.scene.logicW || 960) * this.c.charge.distancePct;
