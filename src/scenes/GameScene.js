@@ -19,16 +19,21 @@ import { CodexSystem } from '../systems/CodexSystem.js';
 import { NarrativeSystem } from '../systems/NarrativeSystem.js';
 import { RecordManager } from '../systems/RecordManager.js';
 import { MetaManager } from '../systems/SettingsManager.js';
-import npcsData from '../data/npcs.json';
+import { NPCSystem } from '../systems/NPCSystem.js';
+import { ThreeDefeatSystem } from '../systems/ThreeDefeatSystem.js';
+import { CollisionSystem } from '../systems/CollisionSystem.js';
 import departureLines from '../data/departure_lines.json';
 
 export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
-  init() {
+  init(data) {
     this.logicW = gameConfig.logicWidth;
     this.logicH = gameConfig.logicHeight;
     this.groundY = this.logicH - 80;
+    // 三败结局选择"不放弃"后回到游戏，授予"信念"
+    this.fromPersevere = !!data?.fromPersevere;
+    this.grantFaith = !!data?.grantFaith;
   }
 
   create() {
@@ -37,6 +42,9 @@ export class GameScene extends Phaser.Scene {
     this.itemSys = new ItemSystem(this);
     this.goldSys = new GoldSystem();
     this.succession = new SuccessionSystem();
+    this.npcSys = new NPCSystem(this);
+    this.threeDefeatSys = new ThreeDefeatSystem();
+    this.collisionSys = new CollisionSystem(this);
 
     // 创建渲染用 Canvas 纹理（所有实体通过 draw(ctx) 绘制到此）
     // 重启场景时需移除旧纹理，避免 "key already in use" 错误
@@ -72,6 +80,11 @@ export class GameScene extends Phaser.Scene {
     const meta = MetaManager.load();
     if (meta.faithPower > 0) {
       this.player.attackMultiplier *= (1 + meta.faithPower * 0.1);
+    }
+    // 三败结局选择"不放弃"后获得"信念"道具：攻击力翻倍（×2）
+    if (this.grantFaith || this.threeDefeatSys.hasFaith()) {
+      this.player.attackMultiplier = 2;
+      this.showBanner('获得信念：承载所有人的希望，你不再是一个人', '#fff3bf');
     }
 
     // BOSS 文本
@@ -376,6 +389,16 @@ export class GameScene extends Phaser.Scene {
       this.boss.nextAttackAt = performance.now() + 2500; // 给玩家反应时间
       this.showBanner('最终 BOSS：肘击王', '#ff006e');
       this.audio?.startBgm('boss');
+      // 三败结局对白：第二次失败时肘击王嘲讽；获得信念后肘击王动摇
+      const faithLine = this.threeDefeatSys.getFaithLine();
+      const mockLine = this.threeDefeatSys.getMockingLine();
+      if (faithLine) {
+        this.dialogue = { name: '肘击王', text: faithLine, color: '#ff006e' };
+        this.dialogueActive = true;
+      } else if (mockLine) {
+        this.dialogue = { name: '肘击王', text: mockLine, color: '#ff006e' };
+        this.dialogueActive = true;
+      }
     } else {
       // 普通战斗房
       const enemies = this.roguelike.spawnEnemiesForRoom(room);
@@ -396,10 +419,9 @@ export class GameScene extends Phaser.Scene {
       if (room.type === 'item') {
         this._spawnItemDrop(this.logicW * 0.5, this.groundY - 20);
       }
-      // NPC 房（小概率）
-      if (Math.random() < 0.15 && this.npcs.length === 0) {
-        const npcDef = npcsData[Math.floor(Math.random() * npcsData.length)];
-        this.npcs.push(new NPC(this, npcDef, this.logicW * 0.4, 300));
+      // NPC 站点生成（每局 1–2 个站点，背刺 NPC 救出后下一站点出现）
+      if (this.npcSys.shouldSpawnStation(room) && this.npcs.length === 0) {
+        this.npcSys.spawnStation(this.logicW * 0.4, 300);
       }
     }
   }
@@ -469,8 +491,8 @@ export class GameScene extends Phaser.Scene {
     this.zjAttacks.forEach(z => z.update());
     this.zjAttacks = this.zjAttacks.filter(z => z.x > -50 && z.x < this.logicW + 50);
 
-    // 碰撞
-    this._collisions(now);
+    // 碰撞（委托给 CollisionSystem 集中管理）
+    this.collisionSys.update(now);
 
     // 粒子
     this.particles.forEach(p => {
@@ -498,20 +520,14 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // NPC 交互
+    // NPC 交互（含背刺对话与交易）
     this.npcs.forEach(n => {
       if (!n.interacted && this._rectHit(this.player, n.getHitBox())) {
-        n.interacted = true;
-        this.audio?.pickup();
-        // 图鉴记录
-        CodexSystem.recordNPC(n.def.id, n.def.name, n.def.rescue);
-        if (n.def.reward === 'rare_item') this._spawnItemDrop(n.x, n.y - 30);
-        // 交易员：打开交易界面
-        if (n.def.reward === 'shop') {
-          this._openShop(n.def);
-        } else {
-          // 触发对话
-          this.dialogue = { name: n.def.name, text: n.def.rescue, color: n.def.color };
+        const result = this.npcSys.onInteract(n);
+        if (result?.shop) {
+          this._openShop(result.shop);
+        } else if (result?.dialogue) {
+          this.dialogue = result.dialogue;
           this.dialogueActive = true;
         }
       }
@@ -1110,12 +1126,12 @@ export class GameScene extends Phaser.Scene {
     // 记录死亡
     RecordManager.recordDeath();
     RecordManager.addPlayTime(performance.now() - this.runStartTime);
-    // 肘击王战失败计数（持久化到 meta，跨传承累计）
+    // 肘击王战失败计数（持久化到 meta，跨传承累计，每任起义军只触发一次三败结局）
     if (this.boss instanceof BossZJW) {
-      const meta = MetaManager.load();
-      meta.threeDefeatCount = (meta.threeDefeatCount || 0) + 1;
-      MetaManager.save(meta);
-      if (meta.threeDefeatCount >= 3) {
+      this.threeDefeatTriggeredThisRun = this.threeDefeatTriggeredThisRun || false;
+      const trigger = this.threeDefeatSys.registerDefeat(this.threeDefeatTriggeredThisRun);
+      if (trigger) {
+        this.threeDefeatTriggeredThisRun = true;
         this._threeDefeat();
         return;
       }
@@ -1137,6 +1153,8 @@ export class GameScene extends Phaser.Scene {
       hasFaith: this.player.attackMultiplier >= 2,
       chapterIdx: this.roguelike.currentChapterIdx,
       roomIdx: this.roguelike.currentRoom,
+      rebelName: this.succession.currentName,
+      rebelGender: this.succession.currentGender,
     };
     this.succession.onDeath(snapshot);
     this.scene.stop('UIScene');
@@ -1145,7 +1163,15 @@ export class GameScene extends Phaser.Scene {
 
   _threeDefeat() {
     this.scene.stop('UIScene');
-    this.scene.start('End', { win: false, threeDefeat: true });
+    // 携带起义军信息供结局统计
+    this.scene.start('End', {
+      win: false, threeDefeat: true,
+      succession: {
+        rebelName: this.succession.currentName,
+        rebelGender: this.succession.currentGender,
+        items: this.itemSys.inventory.map(i => i.id),
+      },
+    });
   }
 
   _win() {
@@ -1154,7 +1180,15 @@ export class GameScene extends Phaser.Scene {
     this.audio?.victory();
     RecordManager.recordVictory(performance.now() - this.runStartTime);
     this.scene.stop('UIScene');
-    this.scene.start('End', { win: true });
+    this.scene.start('End', {
+      win: true,
+      succession: {
+        rebelName: this.succession.currentName,
+        rebelGender: this.succession.currentGender,
+        generation: (MetaManager.load().totalDeaths || 0) + 1,
+        items: this.itemSys.inventory.map(i => i.id),
+      },
+    });
   }
 
   _spawnParticles(x, y, color, n = 6) {

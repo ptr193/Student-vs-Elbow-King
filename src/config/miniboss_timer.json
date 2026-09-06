@@ -1,0 +1,22 @@
+{
+  "phase1Hp": 8,
+  "phase2Hp": 14,
+  "phase1BombCount": 2,
+  "phase2BombCount": 3,
+  "phase1BombTime": 5000,
+  "phase2BombTime": 4000,
+  "phase1BombCd": 10000,
+  "phase2BombCd": 7000,
+  "phase1SlowDuration": 3000,
+  "phase2SlowDuration": 3000,
+  "phase1SlowCd": 8000,
+  "phase2SlowCd": 5000,
+  "phase2GearBullets": 8,
+  "phase2GearCd": 6000,
+  "bombDamage": 2,
+  "slowFactor": 0.6,
+  "goldDropMin": 150,
+  "goldDropMax": 300,
+  "color": "#7950f2",
+  "size": 50
+}

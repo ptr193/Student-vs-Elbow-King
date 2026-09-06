@@ -18,8 +18,11 @@ export class UIScene extends Phaser.Scene {
       fontFamily: 'sans-serif', fontSize: '20px', color: '#51cf66',
       fontStyle: 'bold',
     });
-    this.goldText = this.add.text(20, 48, '', {
-      fontFamily: 'sans-serif', fontSize: '16px', color: '#ffd43b',
+    this.rebelText = this.add.text(20, 46, '', {
+      fontFamily: 'sans-serif', fontSize: '14px', color: '#cc5de8',
+    });
+    this.goldText = this.add.text(20, 66, '', {
+      fontFamily: 'sans-serif', fontSize: '14px', color: '#ffd43b',
     });
     this.roomText = this.add.text(W - 20, 20, '', {
       fontFamily: 'sans-serif', fontSize: '14px', color: '#adb5bd',
@@ -57,17 +60,27 @@ export class UIScene extends Phaser.Scene {
     const game = this.scene.get('Game');
     if (!game || !game.player) return;
     this.hpText.setText('❤ ' + game.player.hp + ' / ' + game.player.maxHp);
-    this.goldText.setText('◈ ' + game.goldSys.getGold());
+    // 起义军编号 + 性别 + 金币
+    const s = game.succession;
+    if (s) {
+      const gen = s.currentGen || 1;
+      const gender = s.currentGender || '—';
+      const name = s.currentName || '起义军';
+      this.rebelText.setText('✦ 第 ' + gen + ' 任 · ' + name + '（' + gender + '）');
+    }
+    this.goldText.setText('◈ ' + (game.goldSys?.getGold() || 0) + ' 金币');
     const ch = game.roguelike?.getCurrentChapter();
     if (ch) {
       this.chapterText.setText(ch.id + ' · ' + ch.name);
     }
-    this.roomText.setText('第 ' + (game.roguelike?.currentRoom + 1) + ' 间');
+    this.roomText.setText('第 ' + ((game.roguelike?.currentRoom || 0) + 1) + ' 间');
     if (game.roguelike?.passiveSkill) {
       this.skillText.setText('被动：' + game.roguelike.passiveSkill.name);
     }
-    if (game.roguelike?.specialBullet) {
+    if (game.roguelike?.specialBullet && game.roguelike.specialBullet !== 'normal') {
       this.bulletText.setText('特殊弹：' + game.roguelike.specialBullet + ' x' + game.roguelike.specialAmmo);
+    } else {
+      this.bulletText.setText('特殊弹：—');
     }
     // 道具栏
     const inv = game.itemSys?.inventory || [];

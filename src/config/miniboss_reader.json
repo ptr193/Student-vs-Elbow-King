@@ -1,0 +1,17 @@
+{
+  "phase1Hp": 4,
+  "phase2Hp": 8,
+  "phase1NoiseDuration": 3000,
+  "phase2NoiseDuration": 5000,
+  "phase1NoiseCd": 8000,
+  "phase2NoiseCd": 5000,
+  "phase1GrabCd": 10000,
+  "phase2GrabCd": 6000,
+  "quizTimeLimit": 8000,
+  "quizWrongDamage": 1,
+  "stunDuration": 3000,
+  "goldDropMin": 150,
+  "goldDropMax": 300,
+  "color": "#4a4a8a",
+  "size": 48
+}

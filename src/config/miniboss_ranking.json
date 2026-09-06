@@ -1,0 +1,18 @@
+{
+  "phase1Hp": 12,
+  "phase2Hp": 20,
+  "phase1PillarCount": 3,
+  "phase2PillarCount": 5,
+  "pillarDamage": 1,
+  "pillarSlowFactor": 0.7,
+  "pillarRearrangeCd": 10000,
+  "compareWaveCd": 8000,
+  "compareWaveDamage": 0.5,
+  "phase1NumberBullets": 6,
+  "phase2NumberBullets": 10,
+  "numberBulletCd": 5000,
+  "goldDropMin": 150,
+  "goldDropMax": 300,
+  "color": "#fab005",
+  "size": 54
+}

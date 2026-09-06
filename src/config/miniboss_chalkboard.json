@@ -1,0 +1,19 @@
+{
+  "phase1Hp": 10,
+  "phase2Hp": 16,
+  "phase1TrailCount": 3,
+  "phase2TrailCount": 5,
+  "phase1TrailCd": 6000,
+  "phase2TrailCd": 4000,
+  "trailDamage": 1,
+  "cageDuration": 5000,
+  "cageHp": 3,
+  "cageCd": 12000,
+  "phase1ChalkShards": 3,
+  "phase2ChalkShards": 5,
+  "chalkCd": 5000,
+  "goldDropMin": 150,
+  "goldDropMax": 300,
+  "color": "#495057",
+  "size": 56
+}

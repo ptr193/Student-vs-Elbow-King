@@ -1,0 +1,175 @@
+{
+  "monsters": {
+    "paperman": {
+      "name": "纸片人",
+      "category": "trash",
+      "desc": "飘动的矩形纸片，带墨迹纹理。发射墨迹弹（直线弹道）。",
+      "metaphor": "做不完的纸张",
+      "hp": 2,
+      "goldDrop": "5-10"
+    },
+    "redmarker": {
+      "name": "红叉兵",
+      "category": "trash",
+      "desc": "持红色标记的方形体，红色叉号纹路。近身冲撞+远程投掷红色印章。",
+      "metaphor": "被标记/否定",
+      "hp": 4,
+      "goldDrop": "8-15"
+    },
+    "inkdrop": {
+      "name": "墨滴",
+      "category": "trash",
+      "desc": "小型圆形黑色液滴，会分裂。近身粘附，接触造成持续减速。",
+      "metaphor": "污渍/涂改",
+      "hp": 1,
+      "goldDrop": "3-8"
+    },
+    "paperplane": {
+      "name": "纸飞机",
+      "category": "trash",
+      "desc": "三角形纸片，飞行轨迹呈波浪线。俯冲攻击。",
+      "metaphor": "传纸条/传播",
+      "hp": 2,
+      "goldDrop": "5-12"
+    },
+    "bellringer": {
+      "name": "铃铛手",
+      "category": "elite",
+      "desc": "悬挂的铃形结构，内部发光。不直接攻击，发出噪音让其他怪加速+玩家减速。",
+      "metaphor": "上课铃/催促",
+      "hp": 1,
+      "goldDrop": "30-40"
+    },
+    "stackpile": {
+      "name": "堆积体",
+      "category": "elite",
+      "desc": "多个方块堆叠组成。打掉一块分裂成两个小敌人。",
+      "metaphor": "做不完的堆积",
+      "hp": 6,
+      "goldDrop": "35-50"
+    },
+    "echo": {
+      "name": "回声",
+      "category": "elite",
+      "desc": "半透明人形轮廓，会复制玩家外观色调。模仿玩家移动方向追击，发射模仿色弹。",
+      "metaphor": "重复/模仿",
+      "hp": 5,
+      "goldDrop": "30-45"
+    },
+    "corrector": {
+      "name": "批改者",
+      "category": "elite",
+      "desc": "持巨大红笔的人形，笔尖发光。挥笔划出红色弧线弹幕，命中区域留持续伤害印记。",
+      "metaphor": "纠错/红笔",
+      "hp": 8,
+      "goldDrop": "40-60"
+    }
+  },
+  "bosses": {
+    "reader": {
+      "name": "读卡机",
+      "category": "miniboss",
+      "desc": "方形机械体，正面有发光读取窗口，顶部有红色扫描线。噪音减速+抓取抽查。",
+      "metaphor": "死记硬背的背书抽查+没完没了的打卡签到",
+      "location": "C1-B 中间"
+    },
+    "timer": {
+      "name": "计时器",
+      "category": "miniboss",
+      "desc": "圆形钟体，正面有巨大倒计时数字，四周有齿轮。倒计时炸弹+时间剥夺。",
+      "metaphor": "考试倒计时压力+时间不够的焦虑",
+      "location": "C2-A 中间"
+    },
+    "chalkboard": {
+      "name": "抄写板",
+      "category": "miniboss",
+      "desc": "长方形黑板状结构，表面有白色粉笔轨迹流动。笔迹追踪+书写牢笼。",
+      "metaphor": "罚抄/重复书写惩罚+机械式劳动",
+      "location": "C2-B 中间"
+    },
+    "ranking": {
+      "name": "排名表",
+      "category": "miniboss",
+      "desc": "竖直长方形表格，表面有流动的数字行列。排名光柱+比较波动。",
+      "metaphor": "排名比较/竞争打压+被排名定义价值",
+      "location": "C3 前段"
+    },
+    "bulletin": {
+      "name": "通告板",
+      "category": "stageboss",
+      "desc": "竖直大板，表面贴满纸条。通告弹幕+张贴定身+召唤杂兵。",
+      "metaphor": "公开通告/张贴通报/被当众展示",
+      "location": "C1-B 末尾"
+    },
+    "tribunal": {
+      "name": "审判台",
+      "category": "stageboss",
+      "desc": "高耸的台座，顶部有法槌和天平。罪名光环+审判锤+身份揭示。",
+      "metaphor": "审判/评判/被定罪/被定性",
+      "location": "C2-B 末尾"
+    },
+    "zjw": {
+      "name": "肘击王",
+      "category": "finalboss",
+      "desc": "两阶段（面具→真面目）。P1站桩+防御模式，P2冲撞+一击必杀。三败结局。",
+      "metaphor": "学业压迫体制的最高化身",
+      "location": "C3 末尾"
+    }
+  },
+  "npcs": {
+    "silent_one": {
+      "name": "沉默者",
+      "gender": "女",
+      "desc": "低头、裹紧外套。内向、坚韧。被救后提供剧情信息和肘击王弱点提示。",
+      "betrayal": false
+    },
+    "trader": {
+      "name": "交易员",
+      "gender": "男",
+      "desc": "挎着装满东西的包。务实、爽朗。在站点摆摊售卖道具。",
+      "betrayal": false
+    },
+    "top_student": {
+      "name": "尖子生",
+      "gender": "男",
+      "desc": "挺胸、戴眼镜框。傲慢、自视甚高。被救后给BOSS信息但语气挖苦。",
+      "betrayal": true
+    },
+    "bystander": {
+      "name": "旁观者",
+      "gender": "女",
+      "desc": "抱臂靠墙。冷漠、事不关己。被救后只给一点提示，还嘲讽。",
+      "betrayal": true
+    },
+    "watcher": {
+      "name": "守望者",
+      "gender": "女",
+      "desc": "站在高处眺望远方。善良、有远见、内心强大。被救后给稀有道具和鼓励，留守后方守望归途。",
+      "betrayal": false
+    }
+  },
+  "items": {
+    "ink_bottle": { "name": "墨水瓶", "rarity": "common", "desc": "下3发子弹伤害+50%", "metaphor": "墨水" },
+    "red_pen": { "name": "红笔", "rarity": "rare", "desc": "下5发子弹必定暴击", "metaphor": "批改红笔" },
+    "draft_paper": { "name": "草稿纸", "rarity": "rare", "desc": "获得一次免死机会（致命伤害时存活1血）", "metaphor": "草稿" },
+    "eraser": { "name": "橡皮擦", "rarity": "common", "desc": "清除当前所有负面状态", "metaphor": "修正" },
+    "stamp": { "name": "印章", "rarity": "epic", "desc": "短暂无敌3秒", "metaphor": "盖章" },
+    "shredded_paper": { "name": "碎纸", "rarity": "common", "desc": "在当前位置放置减速区域", "metaphor": "碎纸" },
+    "paperclip": { "name": "回形针", "rarity": "common", "desc": "回复1格血", "metaphor": "文具" },
+    "paperweight": { "name": "压纸石", "rarity": "rare", "desc": "获得临时护盾，抵挡1次攻击", "metaphor": "压迫" }
+  },
+  "special_bullets": {
+    "normal": { "name": "普通弹", "desc": "基础伤害，自动瞄准" },
+    "ink": { "name": "墨迹弹", "desc": "命中后留下持续伤害区域" },
+    "staple": { "name": "钉书弹", "desc": "命中后短暂定住敌人1秒" },
+    "red_cross": { "name": "红叉弹", "desc": "高伤害单发，穿透" }
+  },
+  "skills": {
+    "swift": { "name": "急速", "desc": "移动速度+20%" },
+    "rapid_fire": { "name": "连射", "desc": "射击间隔-30%" },
+    "ballistics": { "name": "弹道学", "desc": "子弹速度+30%" },
+    "thick_blood": { "name": "厚血", "desc": "最大血量+1（3格）" },
+    "double_charge": { "name": "二段蓄力", "desc": "二段跳高度+20%" },
+    "toughness": { "name": "韧性", "desc": "受击无敌时间+0.5s" }
+  }
+}
