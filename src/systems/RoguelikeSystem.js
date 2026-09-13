@@ -30,19 +30,32 @@ export class RoguelikeSystem {
   _generateChapterRooms() {
     const chapter = this.chapters[this.currentChapterIdx];
     const subAreas = chapter.subAreas;
+    // 构建子区域 -> 小 BOSS 类型 的映射（规格 4.5：C2-A 计时器、C2-B 抄写板）
+    // 优先使用 miniBosses 数组；若缺失则回退到旧 miniBoss 字段（作用于第一个子区域）
+    const miniBossBySubArea = {};
+    if (Array.isArray(chapter.miniBosses) && chapter.miniBosses.length > 0) {
+      for (const m of chapter.miniBosses) miniBossBySubArea[m.subArea] = m.type;
+    } else if (chapter.miniBoss) {
+      miniBossBySubArea[subAreas[0]] = chapter.miniBoss;
+    }
+    // 小 BOSS 位于子区域的"中间房间"（规格 4.5：守在中间房间）
+    const miniBossRoomIdx = Math.floor(this.roomsPerSubArea / 2);
     this.rooms = [];
     for (let sa = 0; sa < subAreas.length; sa++) {
+      const subAreaId = subAreas[sa];
+      const miniBossType = miniBossBySubArea[subAreaId];
       for (let r = 0; r < this.roomsPerSubArea; r++) {
         const isLastRoomOfSubArea = (r === this.roomsPerSubArea - 1);
         const isLastSubArea = (sa === subAreas.length - 1);
-        const isFirstSubArea = (sa === 0);
         let type = 'battle';
-        // 最后一个子区域的最后一间是关卡 BOSS
+        let roomMiniBossType = null;
+        // 最后一个子区域的最后一间是关卡 BOSS（肘击王由 C3 特例处理，stageBoss=null）
         if (isLastRoomOfSubArea && isLastSubArea && chapter.stageBoss) {
           type = 'stageBoss';
-        } else if (isLastRoomOfSubArea && isFirstSubArea && chapter.miniBoss && subAreas.length > 1) {
-          // 第一个子区域的最后一间是小 BOSS
+        } else if (miniBossType && r === miniBossRoomIdx) {
+          // 该子区域的中间房间是小 BOSS
           type = 'miniBoss';
+          roomMiniBossType = miniBossType;
         } else {
           const roll = Math.random();
           if (roll < 0.15) type = 'item';
@@ -50,7 +63,14 @@ export class RoguelikeSystem {
           else if (roll < 0.35) type = 'rest';
           else type = 'battle';
         }
-        this.rooms.push({ chapter: chapter.id, subArea: subAreas[sa], room: r, type, cleared: false });
+        this.rooms.push({
+          chapter: chapter.id,
+          subArea: subAreaId,
+          room: r,
+          type,
+          miniBossType: roomMiniBossType,
+          cleared: false,
+        });
       }
     }
   }

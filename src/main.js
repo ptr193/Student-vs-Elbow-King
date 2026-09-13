@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene.js';
 import { MenuScene } from './scenes/MenuScene.js';
+import { OpeningNarrativeScene } from './scenes/OpeningNarrativeScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { UIScene } from './scenes/UIScene.js';
 import { EndScene } from './scenes/EndScene.js';
@@ -24,7 +25,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene],
+  scene: [BootScene, MenuScene, OpeningNarrativeScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene],
   render: {
     pixelArt: false,
     antialias: true,

@@ -120,6 +120,7 @@ export class AudioSynth {
   victory() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => this._playTone(f, 0.3, 'square', 0.25, 0.02, 0.2), i * 120)); }
   defeat() { [400, 350, 300, 200].forEach((f, i) => setTimeout(() => this._playTone(f, 0.35, 'sawtooth', 0.25, 0.02, 0.25), i * 150)); }
   button() { this._playTone(600, 0.05, 'square', 0.15, 0.005, 0.03); }
+  blip() { this._playTone(1200, 0.02, 'square', 0.05, 0.002, 0.015); }
   pickup() { [659, 988].forEach((f, i) => setTimeout(() => this._playTone(f, 0.1, 'sine', 0.2, 0.01, 0.08), i * 60)); }
   skillActivate() { [392, 523, 659, 784].forEach((f, i) => setTimeout(() => this._playTone(f, 0.12, 'sine', 0.2, 0.01, 0.1), i * 50)); }
   gold() { this._playTone(1200, 0.06, 'sine', 0.15, 0.005, 0.04); this._playTone(1600, 0.06, 'sine', 0.12, 0.005, 0.04, 800); }

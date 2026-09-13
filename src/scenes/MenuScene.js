@@ -77,7 +77,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _startGame() {
-    this.scene.start('Game');
+    // 开场叙事 → Game（规格 4.10：文字逐字显示 + 剪影画面 + 出发台词）
+    this.scene.start('OpeningNarrative');
   }
 
   _showCodex() {

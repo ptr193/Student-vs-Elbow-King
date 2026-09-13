@@ -371,7 +371,7 @@ export class GameScene extends Phaser.Scene {
         chalkboard: { cls: MinibossChalkboard, name: '抄写板', color: '#ced4da' },
         ranking: { cls: MinibossRanking, name: '排名表', color: '#ffd43b' },
       };
-      const mb = miniBossMap[ch.miniBoss];
+      const mb = miniBossMap[room.miniBossType || ch.miniBoss];
       if (mb) {
         this.boss = new mb.cls(this, this.logicW * 0.7, 200);
         this.showBanner('小 BOSS：' + mb.name, mb.color);
