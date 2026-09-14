@@ -22,6 +22,7 @@ import { MetaManager } from '../systems/SettingsManager.js';
 import { NPCSystem } from '../systems/NPCSystem.js';
 import { ThreeDefeatSystem } from '../systems/ThreeDefeatSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
+import { CycleSystem } from '../systems/CycleSystem.js';
 import departureLines from '../data/departure_lines.json';
 
 export class GameScene extends Phaser.Scene {
@@ -45,6 +46,7 @@ export class GameScene extends Phaser.Scene {
     this.npcSys = new NPCSystem(this);
     this.threeDefeatSys = new ThreeDefeatSystem();
     this.collisionSys = new CollisionSystem(this);
+    this.cycleSys = new CycleSystem();
 
     // 创建渲染用 Canvas 纹理（所有实体通过 draw(ctx) 绘制到此）
     // 重启场景时需移除旧纹理，避免 "key already in use" 错误
@@ -74,6 +76,20 @@ export class GameScene extends Phaser.Scene {
 
     // 玩家
     this.player = new Player(this, 60, this.groundY);
+
+    // ===== 周目配置应用（规格 6.1.2 固定主角 + 血条封锁）=====
+    if (this.cycleSys.isFixedProtagonist()) {
+      // 2-8 周目：固定为第一任起义军（男，显示"起义军"）
+      this.succession.currentName = this.cycleSys.getProtagonistName() || '起义军';
+      this.succession.currentGender = this.cycleSys.getProtagonistGender() || '男';
+    }
+    if (this.cycleSys.isHpLocked()) {
+      // 血条封锁：最大血量封锁一半
+      const lockRatio = this.cycleSys.getHpLockRatio();
+      this.player.maxHp = Math.max(1, Math.floor(this.player.maxHp * lockRatio));
+      this.player.hp = this.player.maxHp;
+    }
+
     // 应用随机被动技能
     this.player.applySkill(this.roguelike.passiveSkill);
     // 应用永久信念之力
@@ -87,6 +103,12 @@ export class GameScene extends Phaser.Scene {
       this.showBanner('获得信念：承载所有人的希望，你不再是一个人', '#fff3bf');
     }
 
+    // 周目色调偏移（2/4/8 周目有特殊视觉风格）
+    const tint = this.cycleSys.getColorTint();
+    if (tint) {
+      this._cycleTint = tint;
+    }
+
     // BOSS 文本
     this.boss = null;
     this.bannerText = '';
@@ -97,6 +119,13 @@ export class GameScene extends Phaser.Scene {
     this.dialogue = null; // { name, text, color }
     this.dialogueActive = false;
     this.runStartTime = performance.now();
+
+    // 周目难度倍率应用到 RoguelikeSystem
+    this.roguelike.setCycleMultipliers(
+      this.cycleSys.getEnemyHpMult(),
+      this.cycleSys.getEnemyAtkMult(),
+      this.cycleSys.getEnemyDensity()
+    );
 
     // 生成第一间房
     this.roguelike.generateRun();
@@ -399,7 +428,18 @@ export class GameScene extends Phaser.Scene {
         this.dialogue = { name: '肘击王', text: mockLine, color: '#ff006e' };
         this.dialogueActive = true;
       }
-    } else {
+    }
+
+    // 周目 BOSS 血量倍率应用（规格 6.1.3 难度递增）
+    if (this.boss) {
+      const bossHpMult = this.cycleSys.getBossHpMult();
+      if (bossHpMult !== 1.0 && this.boss.maxHp !== undefined) {
+        this.boss.maxHp = Math.max(1, Math.ceil(this.boss.maxHp * bossHpMult));
+        this.boss.hp = this.boss.maxHp;
+      }
+    }
+
+    if (!this.boss) {
       // 普通战斗房
       const enemies = this.roguelike.spawnEnemiesForRoom(room);
       enemies.forEach((e, i) => {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { SettingsManager, MetaManager } from '../systems/SettingsManager.js';
+import { CycleSystem } from '../systems/CycleSystem.js';
 
 export class MenuScene extends Phaser.Scene {
   constructor() { super('Menu'); }
@@ -22,21 +23,36 @@ export class MenuScene extends Phaser.Scene {
       fontFamily: 'sans-serif', fontSize: '24px', color: '#adb5bd',
     }).setOrigin(0.5);
 
-    // 按钮
-    const btnY = H * 0.5;
-    this._addButton('开始征程', W / 2, btnY, () => this._startGame());
-    this._addButton('图鉴', W / 2, btnY + 70, () => this._showCodex());
-    this._addButton('收藏', W / 2, btnY + 140, () => this._showCollection());
-    this._addButton('设置', W / 2, btnY + 210, () => this._showSettings());
-    this._addButton('关于', W / 2, btnY + 280, () => this._showAbout());
+    // 周目信息
+    const cycleSys = new CycleSystem();
+    const cycle = cycleSys.getCurrentCycle();
+    const completed = cycleSys.isGameCompleted();
 
-    // 传承代数
-    this.add.text(W / 2, H * 0.92, `传承代数：${this.meta.totalDeaths || 0}`, {
-      fontFamily: 'sans-serif', fontSize: '16px', color: '#868e96',
+    // 按钮
+    const btnY = H * 0.48;
+    this._addButton('开始征程', W / 2, btnY, () => this._startGame());
+    this._addButton('图鉴', W / 2, btnY + 60, () => this._showCodex());
+    this._addButton('收藏', W / 2, btnY + 120, () => this._showCollection());
+    this._addButton('成就', W / 2, btnY + 180, () => this._showAchievements());
+    this._addButton('设置', W / 2, btnY + 240, () => this._showSettings());
+    this._addButton('关于', W / 2, btnY + 300, () => this._showAbout());
+
+    // 周目进度
+    const cycleColor = completed ? '#69db7c' : '#ffd43b';
+    const cycleText = completed ? '✦ 游戏已完结 ✦' : `第 ${cycle} 周目 · ${cycleSys.getCycleTitle()}`;
+    this.add.text(W / 2, H * 0.88, cycleText, {
+      fontFamily: 'sans-serif', fontSize: '18px', color: cycleColor, fontStyle: 'bold',
     }).setOrigin(0.5);
-    this.add.text(W / 2, H * 0.96, 'v1.0 · 修复重构版', {
+    this.add.text(W / 2, H * 0.93, `传承代数：${this.meta.totalDeaths || 0}`, {
+      fontFamily: 'sans-serif', fontSize: '14px', color: '#868e96',
+    }).setOrigin(0.5);
+    this.add.text(W / 2, H * 0.97, 'v2.0 · 周目完整版', {
       fontFamily: 'sans-serif', fontSize: '12px', color: '#495057',
     }).setOrigin(0.5);
+  }
+
+  _showAchievements() {
+    this.scene.start('Achievement');
   }
 
   _createParticles(W, H) {

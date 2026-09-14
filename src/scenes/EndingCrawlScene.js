@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import crawlData from '../data/ending_crawl.json';
 import { MetaManager } from '../systems/SettingsManager.js';
 import { RecordManager } from '../systems/RecordManager.js';
+import { CycleSystem } from '../systems/CycleSystem.js';
 
 export class EndingCrawlScene extends Phaser.Scene {
   constructor() { super('EndingCrawl'); }
@@ -122,6 +123,12 @@ export class EndingCrawlScene extends Phaser.Scene {
     if (this.whisperText) this.whisperText.destroy();
     if (this.skipBtn) this.skipBtn.destroy();
 
+    // 通关：递增周目（8 周目通关则标记游戏完结）
+    const cycleSys = new CycleSystem();
+    const wasCycle8 = cycleSys.getCurrentCycle() >= 8;
+    cycleSys.advanceCycle();
+    const gameCompleted = cycleSys.isGameCompleted();
+
     const W = this.W, H = this.H;
     const meta = MetaManager.load();
     const gen = (meta.totalDeaths || 0) + 1;
@@ -157,14 +164,28 @@ export class EndingCrawlScene extends Phaser.Scene {
       fontStyle: 'bold',
     }).setOrigin(0.5);
 
-    this._addButton('再战一局', W / 2 - 90, H * 0.85, () => {
-      this.scene.stop('EndingCrawl');
-      this.scene.start('Game');
-    });
-    this._addButton('返回主菜单', W / 2 + 90, H * 0.85, () => {
-      this.scene.stop('EndingCrawl');
-      this.scene.start('Menu');
-    });
+    if (gameCompleted) {
+      // 8 周目通关：游戏完结
+      this.add.text(W / 2, H * 0.78, '★ 游戏完结 ★', {
+        fontFamily: 'sans-serif', fontSize: '32px', color: '#ffd43b', fontStyle: 'bold',
+      }).setOrigin(0.5);
+      this.add.text(W / 2, H * 0.84, '感谢你陪伴起义军走完这段旅程。', {
+        fontFamily: 'sans-serif', fontSize: '16px', color: '#adb5bd',
+      }).setOrigin(0.5);
+      this._addButton('返回主菜单', W / 2, H * 0.92, () => {
+        this.scene.stop('EndingCrawl');
+        this.scene.start('Menu');
+      });
+    } else {
+      this._addButton('进入下一周目', W / 2 - 90, H * 0.85, () => {
+        this.scene.stop('EndingCrawl');
+        this.scene.start('CycleTransition');
+      });
+      this._addButton('返回主菜单', W / 2 + 90, H * 0.85, () => {
+        this.scene.stop('EndingCrawl');
+        this.scene.start('Menu');
+      });
+    }
   }
 
   _calcRating(deaths, timeMs) {

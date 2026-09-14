@@ -43,6 +43,12 @@ export const MetaManager = {
       threeDefeatCount: 0,
       hasFaith: false,
       cycle: 1,
+      cycleCompleted: false,
+      unlockedCycles: [1],
+      firstProtagonistName: '',
+      firstProtagonistGender: '',
+      achievements: [],
+      leaderboard: { bestTime: null, leastDeaths: null },
     };
   },
   save(meta) {

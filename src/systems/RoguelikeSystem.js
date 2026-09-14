@@ -98,19 +98,32 @@ export class RoguelikeSystem {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  // 设置周目难度倍率（由 GameScene 调用）
+  setCycleMultipliers(hpMult, atkMult, density) {
+    this.cycleHpMult = hpMult || 1.0;
+    this.cycleAtkMult = atkMult || 1.0;
+    this.cycleDensity = density || 'normal';
+  }
+
   spawnEnemiesForRoom(room) {
     const enemies = [];
     const chapterMult = 1 + this.currentChapterIdx * 0.3;
+    const hpMult = (this.cycleHpMult || 1.0) * chapterMult;
     if (room.type === 'battle') {
-      const count = 3 + Math.floor(Math.random() * 3);
+      // 怪物密度按周目调整
+      const densityMap = { rare: 0.5, normal: 1, medium: 1.3, many: 1.6, extreme: 2.0, extreme_plus: 2.5 };
+      const densityMult = densityMap[this.cycleDensity] || 1;
+      const baseCount = 3 + Math.floor(Math.random() * 3);
+      const count = Math.max(1, Math.floor(baseCount * densityMult));
       for (let i = 0; i < count; i++) {
         const def = this._randomPick(enemiesData.trash);
-        enemies.push({ ...def, hp: Math.ceil(def.hp * chapterMult), isElite: false });
+        enemies.push({ ...def, hp: Math.ceil(def.hp * hpMult), isElite: false });
       }
-      // 20% 概率出精英
-      if (Math.random() < 0.2 + this.currentChapterIdx * 0.1) {
+      // 精英怪概率按周目提升
+      const eliteChance = Math.min(0.8, (0.2 + this.currentChapterIdx * 0.1) * densityMult);
+      if (Math.random() < eliteChance) {
         const def = this._randomPick(enemiesData.elite);
-        enemies.push({ ...def, hp: Math.ceil(def.hp * chapterMult), isElite: true });
+        enemies.push({ ...def, hp: Math.ceil(def.hp * hpMult), isElite: true });
       }
     } else if (room.type === 'miniBoss' || room.type === 'stageBoss') {
       // BOSS由场景单独处理
