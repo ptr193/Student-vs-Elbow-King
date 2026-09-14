@@ -8,6 +8,8 @@ import { EndScene } from './scenes/EndScene.js';
 import { EndingCrawlScene } from './scenes/EndingCrawlScene.js';
 import { SuccessionScene } from './scenes/SuccessionScene.js';
 import { CodexScene } from './scenes/CodexScene.js';
+import { CollectionScene } from './scenes/CollectionScene.js';
+import { AboutScene } from './scenes/AboutScene.js';
 import { AudioSynth } from './utils/audio_synth.js';
 
 const audio = new AudioSynth();
@@ -25,7 +27,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, OpeningNarrativeScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene],
+  scene: [BootScene, MenuScene, OpeningNarrativeScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene, CollectionScene, AboutScene],
   render: {
     pixelArt: false,
     antialias: true,

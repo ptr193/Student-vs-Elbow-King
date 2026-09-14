@@ -26,8 +26,9 @@ export class MenuScene extends Phaser.Scene {
     const btnY = H * 0.5;
     this._addButton('开始征程', W / 2, btnY, () => this._startGame());
     this._addButton('图鉴', W / 2, btnY + 70, () => this._showCodex());
-    this._addButton('设置', W / 2, btnY + 140, () => this._showSettings());
-    this._addButton('关于', W / 2, btnY + 210, () => this._showAbout());
+    this._addButton('收藏', W / 2, btnY + 140, () => this._showCollection());
+    this._addButton('设置', W / 2, btnY + 210, () => this._showSettings());
+    this._addButton('关于', W / 2, btnY + 280, () => this._showAbout());
 
     // 传承代数
     this.add.text(W / 2, H * 0.92, `传承代数：${this.meta.totalDeaths || 0}`, {
@@ -85,12 +86,16 @@ export class MenuScene extends Phaser.Scene {
     this.scene.start('Codex');
   }
 
+  _showCollection() {
+    this.scene.start('Collection');
+  }
+
   _showSettings() {
     this._showModal('设置', 'BGM 音量：' + Math.round(this.settings.bgmVolume * 100) + '%\n音效音量：' + Math.round(this.settings.sfxVolume * 100) + '%\n屏幕震动：' + (this.settings.screenShake ? '开' : '关'));
   }
 
   _showAbout() {
-    this._showModal('关于', '大战肘击王 v1.0\n俯视角硬核双摇杆射击肉鸽手游\n\n核心特色：不平衡的战争\nBOSS 压倒性强大，玩家获胜概率极低\n但每一代起义军的牺牲都为最终胜利铺路');
+    this.scene.start('About');
   }
 
   _showModal(title, content) {
