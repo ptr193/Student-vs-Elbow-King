@@ -34,8 +34,9 @@ export class MenuScene extends Phaser.Scene {
     this._addButton('图鉴', W / 2, btnY + 60, () => this._showCodex());
     this._addButton('收藏', W / 2, btnY + 120, () => this._showCollection());
     this._addButton('成就', W / 2, btnY + 180, () => this._showAchievements());
-    this._addButton('设置', W / 2, btnY + 240, () => this._showSettings());
-    this._addButton('关于', W / 2, btnY + 300, () => this._showAbout());
+    this._addButton('排行榜', W / 2, btnY + 240, () => this.scene.start('Leaderboard'));
+    this._addButton('设置', W / 2, btnY + 300, () => this._showSettings());
+    this._addButton('关于', W / 2, btnY + 360, () => this._showAbout());
 
     // 周目进度
     const cycleColor = completed ? '#69db7c' : '#ffd43b';
@@ -94,8 +95,44 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _startGame() {
-    // 开场叙事 → Game（规格 4.10：文字逐字显示 + 剪影画面 + 出发台词）
-    this.scene.start('OpeningNarrative');
+    const cycleSys = new CycleSystem();
+    // 完结后可选择周目（规格 7.5）
+    if (cycleSys.isGameCompleted()) {
+      this._showCycleSelect();
+    } else {
+      this.scene.start('OpeningNarrative');
+    }
+  }
+
+  _showCycleSelect() {
+    const W = this.scale.width, H = this.scale.height;
+    const cycleSys = new CycleSystem();
+    const unlocked = cycleSys.getUnlockedCycles();
+    const overlay = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.85).setDepth(10);
+    this.add.text(W / 2, H * 0.2, '选择周目', {
+      fontFamily: 'sans-serif', fontSize: '28px', color: '#ffd43b', fontStyle: 'bold',
+    }).setOrigin(0.5).setDepth(11);
+    const cols = 4;
+    unlocked.forEach((c, i) => {
+      const x = W / 2 + (i % cols - (cols - 1) / 2) * 110;
+      const y = H * 0.4 + Math.floor(i / cols) * 80;
+      const btn = this.add.text(x, y, `第 ${c} 周目`, {
+        fontFamily: 'sans-serif', fontSize: '16px', color: '#adb5bd',
+        backgroundColor: '#1a1a2e', padding: { x: 10, y: 6 },
+      }).setOrigin(0.5).setDepth(11).setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setColor('#ffd43b'));
+      btn.on('pointerout', () => btn.setColor('#adb5bd'));
+      btn.on('pointerdown', () => {
+        cycleSys.setCycle(c);
+        overlay.destroy();
+        this.scene.start(c === 1 ? 'OpeningNarrative' : 'CycleTransition');
+      });
+    });
+    // 取消
+    const cancel = this.add.text(W / 2, H * 0.8, '取消', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#868e96',
+    }).setOrigin(0.5).setDepth(11).setInteractive({ useHandCursor: true });
+    cancel.on('pointerdown', () => { overlay.destroy(); this.scene.restart(); });
   }
 
   _showCodex() {

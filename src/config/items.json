@@ -7,5 +7,17 @@
   { "id": "shredded_paper", "name": "碎纸", "effect": "slowZone", "value": 1, "rarity": "普通", "desc": "在当前位置放置减速区域", "color": "#adb5bd" },
   { "id": "paperclip", "name": "回形针", "effect": "heal1", "value": 1, "rarity": "普通", "desc": "回复 1 格血", "color": "#ced4da" },
   { "id": "paperweight", "name": "压纸石", "effect": "shield1", "value": 1, "rarity": "稀有", "desc": "获得临时护盾，抵挡 1 次攻击", "color": "#495057" },
-  { "id": "faith", "name": "信念", "effect": "attackDouble", "value": 2, "rarity": "传说", "desc": "攻击力翻倍，承载着所有人的希望", "color": "#fff3bf" }
+  { "id": "faith", "name": "信念", "effect": "attackDouble", "value": 2, "rarity": "传说", "desc": "攻击力翻倍，承载着所有人的希望", "color": "#fff3bf" },
+  { "id": "glue", "name": "胶水", "effect": "stickyBullets", "value": 1, "rarity": "普通", "desc": "子弹命中敌人后减速 2 秒", "color": "#ffd43b" },
+  { "id": "compass", "name": "圆规", "effect": "circleShot", "value": 8, "rarity": "稀有", "desc": "发射环形 8 方向弹幕", "color": "#aab0ff" },
+  { "id": "ruler", "name": "直尺", "effect": "pierceShot", "value": 1, "rarity": "稀有", "desc": "子弹穿透所有敌人", "color": "#dee2e6" },
+  { "id": "protractor", "name": "量角器", "effect": "spreadShot", "value": 3, "rarity": "稀有", "desc": "同时发射 3 发扇形子弹", "color": "#69db7c" },
+  { "id": "calculator", "name": "计算器", "effect": "damageUp", "value": 0.5, "rarity": "史诗", "desc": "攻击力 +50%（永久）", "color": "#74c0fc" },
+  { "id": "textbook", "name": "教科书", "effect": "maxHpUp", "value": 1, "rarity": "史诗", "desc": "最大血量 +1", "color": "#fa5252" },
+  { "id": "notebook", "name": "笔记本", "effect": "speedUp", "value": 0.2, "rarity": "普通", "desc": "移动速度 +20%", "color": "#e599f7" },
+  { "id": "pencil", "name": "铅笔", "effect": "fireRateUp", "value": 0.2, "rarity": "普通", "desc": "射击间隔 -20%", "color": "#ffd8a8" },
+  { "id": "highlighter", "name": "荧光笔", "effect": "bulletSpeedUp", "value": 0.3, "rarity": "普通", "desc": "子弹速度 +30%", "color": "#69db7c" },
+  { "id": "correction_tape", "name": "修正带", "effect": "reviveFull", "value": 1, "rarity": "史诗", "desc": "死亡时满血复活（一次性）", "color": "#fff3bf" },
+  { "id": "medal", "name": "奖章", "effect": "goldBonus", "value": 0.5, "rarity": "稀有", "desc": "金币掉落 +50%", "color": "#ffd43b" },
+  { "id": "trophy", "name": "奖杯", "effect": "eliteDown", "value": 0.3, "rarity": "史诗", "desc": "精英怪血量 -30%", "color": "#fcc419" }
 ]

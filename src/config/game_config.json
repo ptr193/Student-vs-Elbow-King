@@ -30,7 +30,9 @@
       "stageBoss": "tribunal",
       "miniBosses": [
         { "subArea": "C2-A", "type": "timer" },
-        { "subArea": "C2-B", "type": "chalkboard" }
+        { "subArea": "C2-A", "type": "overseer" },
+        { "subArea": "C2-B", "type": "chalkboard" },
+        { "subArea": "C2-B", "type": "broadcast" }
       ]
     },
     {
@@ -41,7 +43,9 @@
       "miniBoss": "ranking",
       "stageBoss": null,
       "miniBosses": [
-        { "subArea": "C3", "type": "ranking" }
+        { "subArea": "C3", "type": "ranking" },
+        { "subArea": "C3", "type": "overseer" },
+        { "subArea": "C3", "type": "broadcast" }
       ]
     }
   ]

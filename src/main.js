@@ -11,6 +11,9 @@ import { CodexScene } from './scenes/CodexScene.js';
 import { CollectionScene } from './scenes/CollectionScene.js';
 import { AboutScene } from './scenes/AboutScene.js';
 import { CycleTransitionScene } from './scenes/CycleTransitionScene.js';
+import { AchievementScene } from './scenes/AchievementScene.js';
+import { WeaponSelectScene } from './scenes/WeaponSelectScene.js';
+import { LeaderboardScene } from './scenes/LeaderboardScene.js';
 import { AudioSynth } from './utils/audio_synth.js';
 
 const audio = new AudioSynth();
@@ -28,7 +31,7 @@ const config = {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, OpeningNarrativeScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene, CollectionScene, AboutScene, CycleTransitionScene],
+  scene: [BootScene, MenuScene, OpeningNarrativeScene, WeaponSelectScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene, CollectionScene, AboutScene, CycleTransitionScene, AchievementScene, LeaderboardScene],
   render: {
     pixelArt: false,
     antialias: true,

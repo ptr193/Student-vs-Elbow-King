@@ -185,7 +185,7 @@ export class OpeningNarrativeScene extends Phaser.Scene {
     this._phase = 'done';
     this.cameras.main.fadeOut(600, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('Game');
+      this.scene.start('WeaponSelect');
     });
   }
 }

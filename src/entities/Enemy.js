@@ -80,6 +80,65 @@ export class Enemy {
           this.nextAttackAt = now + this.def.attackCd;
         }
         break;
+      case 'slow_trail':
+        // 碎纸机：缓慢追击，身后留下减速带
+        this.x += (dx / dist) * this.speed;
+        this.y += (dy / dist) * this.speed;
+        if (now >= this.nextAttackAt) {
+          this.scene._spawnSlowZone?.(this.x + this.w / 2, this.y + this.h / 2);
+          this.nextAttackAt = now + 1500;
+        }
+        break;
+      case 'comma_period':
+        // 标点兵：保持中距离，交替发射逗号弹（减速）和句号弹（定身）
+        if (dist < 180) { this.x -= (dx / dist) * this.speed; this.y -= (dy / dist) * this.speed; }
+        else if (dist > 280) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; }
+        if (now >= this.nextAttackAt) {
+          const isComma = Math.random() < 0.5;
+          this.scene.spawnEnemyBullet(
+            this.x + this.w / 2, this.y + this.h / 2,
+            (dx / dist) * 4, (dy / dist) * 4,
+            { color: isComma ? '#ffd43b' : '#fa5252', damage: 1, special: isComma ? 'slow' : 'stun' }
+          );
+          this.nextAttackAt = now + this.def.attackCd;
+        }
+        break;
+      case 'full_beam':
+        // 满分者：快速追击，定期发射全屏直线光束
+        this.x += (dx / dist) * this.speed;
+        this.y += (dy / dist) * this.speed;
+        if (now >= this.nextAttackAt) {
+          this.scene._spawnBeam?.(this.x + this.w / 2, this.y + this.h / 2, dx / dist, dy / dist);
+          this.nextAttackAt = now + this.def.attackCd;
+        }
+        break;
+      case 'spawn_minion':
+        // 档案柜：缓慢移动，定期打开抽屉释放杂兵
+        this.x += (dx / dist) * this.speed;
+        this.y += (dy / dist) * this.speed;
+        if (now >= this.nextAttackAt && this.scene.enemies.length < 8) {
+          const minion = {
+            x: this.x + this.w / 2, y: this.y + this.h / 2,
+            hp: 2, maxHp: 2, size: 14,
+            def: { id: 'paper', name: '纸片', color: '#e9ecef', speed: 1.8, goldMin: 1, goldMax: 3 },
+            vx: 0, vy: 0, dead: false,
+            getHitBox() { return { x: this.x - 8, y: this.y - 8, w: 16, h: 16 }; },
+            takeHit(n, d = 1) { this.hp -= d; if (this.hp <= 0) this.dead = true; },
+            update(player, n) {
+              const ddx = player.x - this.x, ddy = player.y - this.y;
+              const dd = Math.hypot(ddx, ddy) || 1;
+              this.x += (ddx / dd) * (this.def.speed || 1);
+              this.y += (ddy / dd) * (this.def.speed || 1);
+            },
+            draw(ctx) {
+              ctx.fillStyle = this.def.color;
+              ctx.fillRect(this.x - 7, this.y - 7, 14, 14);
+            },
+          };
+          this.scene.enemies.push(minion);
+          this.nextAttackAt = now + this.def.attackCd;
+        }
+        break;
       default:
         this.x += (dx / dist) * this.speed;
     }
@@ -101,7 +160,10 @@ export class Enemy {
   }
 
   takeHit(now, damage = 1) {
-    this.hp -= damage;
+    // 护甲：档案柜受到的伤害减半
+    let dmg = damage;
+    if (this.def.armored) dmg = Math.max(1, Math.floor(dmg / 2));
+    this.hp -= dmg;
     this.flashUntil = now + 100;
     if (this.hp <= 0) {
       this.dead = true;
@@ -235,5 +297,55 @@ const ENEMY_DRAW = {
     ctx.beginPath();
     ctx.arc(14 * s, 6 * s, 4 * s, 0, Math.PI * 2);
     ctx.fill();
+  },
+  // v1.5 新杂兵：碎纸机
+  shredder(ctx, s) {
+    ctx.fillStyle = '#495057';
+    ctx.fillRect(-16 * s, -16 * s, 32 * s, 32 * s);
+    ctx.fillStyle = '#212529';
+    for (let i = 0; i < 5; i++) {
+      ctx.fillRect(-14 * s, -12 * s + i * 6 * s, 28 * s, 3 * s);
+    }
+    ctx.fillStyle = '#868e96';
+    ctx.fillRect(-10 * s, 10 * s, 20 * s, 4 * s);
+  },
+  // v1.5 新杂兵：标点兵
+  punctuator(ctx, s) {
+    ctx.fillStyle = '#ffd43b';
+    ctx.beginPath();
+    ctx.arc(0, 0, 14 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#212529';
+    ctx.font = `${20 * s}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('，', 0, 0);
+  },
+  // v1.5 新精英：满分者（金色发光人形）
+  perfect(ctx, s) {
+    ctx.shadowColor = '#ffd43b';
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = '#ffd43b';
+    ctx.beginPath();
+    ctx.arc(0, -8 * s, 8 * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(-7 * s, 0, 14 * s, 20 * s);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#212529';
+    ctx.font = `bold ${10 * s}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('100', 0, 12 * s);
+  },
+  // v1.5 新精英：档案柜
+  cabinet(ctx, s) {
+    ctx.fillStyle = '#5c3a21';
+    ctx.fillRect(-20 * s, -22 * s, 40 * s, 44 * s);
+    ctx.strokeStyle = '#3d2817';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeRect(-16 * s, -18 * s + i * 14 * s, 32 * s, 10 * s);
+      ctx.fillStyle = '#ffd43b';
+      ctx.fillRect(-2 * s, -14 * s + i * 14 * s, 4 * s, 2 * s);
+    }
   },
 };

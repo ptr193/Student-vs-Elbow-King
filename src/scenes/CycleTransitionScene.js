@@ -78,7 +78,7 @@ export class CycleTransitionScene extends Phaser.Scene {
   _goToGame() {
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start('Game');
+      this.scene.start('WeaponSelect');
     });
   }
 }

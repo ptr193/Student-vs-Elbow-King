@@ -30,20 +30,23 @@ export class RoguelikeSystem {
   _generateChapterRooms() {
     const chapter = this.chapters[this.currentChapterIdx];
     const subAreas = chapter.subAreas;
-    // 构建子区域 -> 小 BOSS 类型 的映射（规格 4.5：C2-A 计时器、C2-B 抄写板）
-    // 优先使用 miniBosses 数组；若缺失则回退到旧 miniBoss 字段（作用于第一个子区域）
-    const miniBossBySubArea = {};
+    // 构建子区域 -> 小 BOSS 类型池 的映射（v1.5：同一子区域可有多个候选，随机选取）
+    const miniBossPoolBySubArea = {};
     if (Array.isArray(chapter.miniBosses) && chapter.miniBosses.length > 0) {
-      for (const m of chapter.miniBosses) miniBossBySubArea[m.subArea] = m.type;
+      for (const m of chapter.miniBosses) {
+        if (!miniBossPoolBySubArea[m.subArea]) miniBossPoolBySubArea[m.subArea] = [];
+        miniBossPoolBySubArea[m.subArea].push(m.type);
+      }
     } else if (chapter.miniBoss) {
-      miniBossBySubArea[subAreas[0]] = chapter.miniBoss;
+      miniBossPoolBySubArea[subAreas[0]] = [chapter.miniBoss];
     }
     // 小 BOSS 位于子区域的"中间房间"（规格 4.5：守在中间房间）
     const miniBossRoomIdx = Math.floor(this.roomsPerSubArea / 2);
     this.rooms = [];
     for (let sa = 0; sa < subAreas.length; sa++) {
       const subAreaId = subAreas[sa];
-      const miniBossType = miniBossBySubArea[subAreaId];
+      const pool = miniBossPoolBySubArea[subAreaId];
+      const miniBossType = pool ? pool[Math.floor(Math.random() * pool.length)] : null;
       for (let r = 0; r < this.roomsPerSubArea; r++) {
         const isLastRoomOfSubArea = (r === this.roomsPerSubArea - 1);
         const isLastSubArea = (sa === subAreas.length - 1);

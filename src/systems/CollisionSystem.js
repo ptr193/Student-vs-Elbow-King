@@ -31,6 +31,22 @@ export class CollisionSystem {
         scene.audio?.hit();
       }
     }
+    // 分水岭 BOSS 的黑影：玩家子弹可命中
+    if (boss.shadows && boss.shadows.length > 0) {
+      for (let i = scene.playerBullets.length - 1; i >= 0; i--) {
+        const b = scene.playerBullets[i];
+        for (const sh of boss.shadows) {
+          if (sh.dead) continue;
+          if (this._rectHit(b, sh.getHitBox())) {
+            if (!b.pierce) scene.playerBullets.splice(i, 1);
+            sh.takeHit(now, b.damage || 1);
+            scene._spawnParticles(b.x, b.y, '#fa5252', 3);
+            scene.audio?.hit();
+            break;
+          }
+        }
+      }
+    }
     // 肘击 vs 玩家
     for (let i = scene.zjAttacks.length - 1; i >= 0; i--) {
       const z = scene.zjAttacks[i];

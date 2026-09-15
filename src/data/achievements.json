@@ -1,0 +1,22 @@
+[
+  { "id": "first_victory", "name": "首胜", "desc": "首次击败肘击王", "icon": "★" },
+  { "id": "kill_reader", "name": "破读", "desc": "击败读卡机", "icon": "📖" },
+  { "id": "kill_timer", "name": "抢时", "desc": "击败计时器", "icon": "⏱" },
+  { "id": "kill_chalkboard", "name": "停笔", "desc": "击败抄写板", "icon": "🖊" },
+  { "id": "kill_ranking", "name": "无名", "desc": "击败排名表", "icon": "📊" },
+  { "id": "kill_bulletin", "name": "撕告", "desc": "击败通告板", "icon": "📋" },
+  { "id": "kill_tribunal", "name": "脱罪", "desc": "击败审判台", "icon": "⚖" },
+  { "id": "poet_10", "name": "小有才学", "desc": "累计背诵 10 首诗句", "icon": "📜" },
+  { "id": "poet_50", "name": "学富五车", "desc": "累计背诵 50 首诗句", "icon": "📚" },
+  { "id": "poet_100", "name": "诗词大家", "desc": "累计背诵 100 首诗句", "icon": "🏆" },
+  { "id": "death_10", "name": "百折不挠", "desc": "累计死亡 10 次", "icon": "💀" },
+  { "id": "death_50", "name": "前赴后继", "desc": "累计死亡 50 次", "icon": "⚔" },
+  { "id": "collect_10", "name": "收藏家", "desc": "收集 10 种不同道具", "icon": "🎒" },
+  { "id": "collect_all", "name": "全图鉴", "desc": "收集全部道具", "icon": "📦" },
+  { "id": "speedrun_5min", "name": "速通达人", "desc": "5 分钟内通关", "icon": "⚡" },
+  { "id": "no_death_run", "name": "无伤通关", "desc": "一命通关", "icon": "🛡" },
+  { "id": "cycle_2", "name": "忆者", "desc": "进入二周目", "icon": "👻" },
+  { "id": "cycle_8", "name": "终章", "desc": "进入八周目", "icon": "🌅" },
+  { "id": "game_complete", "name": "完结", "desc": "通关全部 8 周目", "icon": "🌟" },
+  { "id": "npc_all", "name": "人缘", "desc": "与全部 5 名 NPC 交互", "icon": "🤝" }
+]

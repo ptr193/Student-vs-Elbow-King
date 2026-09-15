@@ -8,6 +8,9 @@ import { MinibossChalkboard } from '../entities/MinibossChalkboard.js';
 import { MinibossRanking } from '../entities/MinibossRanking.js';
 import { StageBossBulletin } from '../entities/StageBossBulletin.js';
 import { StageBossTribunal } from '../entities/StageBossTribunal.js';
+import { BossWatershed } from '../entities/BossWatershed.js';
+import { MinibossOverseer } from '../entities/MinibossOverseer.js';
+import { MinibossBroadcast } from '../entities/MinibossBroadcast.js';
 import { Enemy } from '../entities/Enemy.js';
 import { Bullet, ZjAttack } from '../entities/Bullet.js';
 import { NPC } from '../entities/NPC.js';
@@ -22,7 +25,10 @@ import { MetaManager } from '../systems/SettingsManager.js';
 import { NPCSystem } from '../systems/NPCSystem.js';
 import { ThreeDefeatSystem } from '../systems/ThreeDefeatSystem.js';
 import { CollisionSystem } from '../systems/CollisionSystem.js';
+import { WeaponSystem } from '../systems/WeaponSystem.js';
 import { CycleSystem } from '../systems/CycleSystem.js';
+import { CycleEventManager } from '../systems/CycleEventManager.js';
+import { AchievementSystem } from '../systems/AchievementSystem.js';
 import departureLines from '../data/departure_lines.json';
 
 export class GameScene extends Phaser.Scene {
@@ -43,10 +49,15 @@ export class GameScene extends Phaser.Scene {
     this.itemSys = new ItemSystem(this);
     this.goldSys = new GoldSystem();
     this.succession = new SuccessionSystem();
+    // 武器系统：加载玩家在 WeaponSelectScene 选择的武器
+    this.weapon = new WeaponSystem();
+    const meta = MetaManager.load();
+    if (meta.selectedWeapon) this.weapon.select(meta.selectedWeapon);
     this.npcSys = new NPCSystem(this);
     this.threeDefeatSys = new ThreeDefeatSystem();
     this.collisionSys = new CollisionSystem(this);
     this.cycleSys = new CycleSystem();
+    this.cycleEvent = new CycleEventManager(this);
 
     // 创建渲染用 Canvas 纹理（所有实体通过 draw(ctx) 绘制到此）
     // 重启场景时需移除旧纹理，避免 "key already in use" 错误
@@ -92,8 +103,7 @@ export class GameScene extends Phaser.Scene {
 
     // 应用随机被动技能
     this.player.applySkill(this.roguelike.passiveSkill);
-    // 应用永久信念之力
-    const meta = MetaManager.load();
+    // 应用永久信念之力（复用上方声明的 meta）
     if (meta.faithPower > 0) {
       this.player.attackMultiplier *= (1 + meta.faithPower * 0.1);
     }
@@ -399,6 +409,8 @@ export class GameScene extends Phaser.Scene {
         timer: { cls: MinibossTimer, name: '计时器', color: '#aab0ff' },
         chalkboard: { cls: MinibossChalkboard, name: '抄写板', color: '#ced4da' },
         ranking: { cls: MinibossRanking, name: '排名表', color: '#ffd43b' },
+        overseer: { cls: MinibossOverseer, name: '监工', color: '#ffd43b' },
+        broadcast: { cls: MinibossBroadcast, name: '广播站', color: '#aab0ff' },
       };
       const mb = miniBossMap[room.miniBossType || ch.miniBoss];
       if (mb) {
@@ -411,7 +423,18 @@ export class GameScene extends Phaser.Scene {
     } else if (room.type === 'stageBoss' && ch.stageBoss === 'tribunal') {
       this.boss = new StageBossTribunal(this, this.logicW * 0.7, 150);
       this.showBanner('关卡 BOSS：审判台', '#cc5de8');
+    } else if (ch.id === 'C3' && room.room === this.roguelike.roomsPerSubArea - 2 &&
+               (this.cycleSys.getSpecialEvent() === 'watershed_boss' || this.cycleSys.getSpecialEvent() === 'watershed_boss_plus')) {
+      // 六/七周目：C3 倒数第二间生成"一生分水岭"BOSS
+      this.boss = new BossWatershed(this, this.logicW * 0.7, this.groundY - 60);
+      this.showBanner('关卡 BOSS：一生分水岭', '#fa5252');
+      this.audio?.startBgm('boss');
     } else if (ch.id === 'C3' && room.room === this.roguelike.roomsPerSubArea - 1) {
+      // 八周目：肘击王不在，直接触发完结
+      if (this.cycleSys.getCurrentCycle() >= 8) {
+        this._win();
+        return;
+      }
       // 最终 BOSS 肘击王（C3 最后一间）
       this.boss = new BossZJW(this, this.logicW * 0.75, this.groundY + 80 - 200);
       this.boss.chargeMaxDistance = this.logicW * 0.55;
@@ -485,7 +508,17 @@ export class GameScene extends Phaser.Scene {
     else if (this.keys.right.isDown) this.inputState.moveX = 1;
     else if (!this._movePointer) this.inputState.moveX = 0;
 
-    // 玩家
+    // 玩家（减速带判定）
+    if (this.slowZones) {
+      const px = this.player.x + this.player.w / 2;
+      const py = this.player.y + this.player.h / 2;
+      for (const z of this.slowZones) {
+        if (Math.hypot(px - z.x, py - z.y) < z.r) {
+          this.player.slowUntil = now + 200;
+          break;
+        }
+      }
+    }
     this.player.update(this.inputState, delta, this.groundY);
     // 门锁限制
     if (!this.roomCleared && this.player.x > this.logicW - 60) {
@@ -533,6 +566,7 @@ export class GameScene extends Phaser.Scene {
 
     // 碰撞（委托给 CollisionSystem 集中管理）
     this.collisionSys.update(now);
+    this.cycleEvent?.update(now, delta);
 
     // 粒子
     this.particles.forEach(p => {
@@ -540,6 +574,9 @@ export class GameScene extends Phaser.Scene {
       p.vy += 0.05;
     });
     this.particles = this.particles.filter(p => now - p.born < p.life);
+    // 清理过期减速带与光束
+    if (this.slowZones) this.slowZones = this.slowZones.filter(z => now - z.born < z.life);
+    if (this.beams) this.beams = this.beams.filter(b => now - b.born < b.life);
 
     // 道具掉落拾取
     if (this.itemDrops) {
@@ -707,6 +744,35 @@ export class GameScene extends Phaser.Scene {
     });
     ctx.globalAlpha = 1;
 
+    // 减速带（碎纸机）
+    if (this.slowZones) {
+      this.slowZones.forEach(z => {
+        const a = 1 - (now - z.born) / z.life;
+        ctx.fillStyle = `rgba(134, 142, 150, ${0.3 * a})`;
+        ctx.beginPath();
+        ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(134, 142, 150, ${0.6 * a})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+    }
+    // 全屏光束（满分者）
+    if (this.beams) {
+      this.beams.forEach(b => {
+        const a = 1 - (now - b.born) / b.life;
+        ctx.strokeStyle = `rgba(255, 212, 59, ${a})`;
+        ctx.lineWidth = 8;
+        ctx.beginPath();
+        ctx.moveTo(b.x1, b.y1);
+        ctx.lineTo(b.x2, b.y2);
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(255, 255, 255, ${a})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      });
+    }
+
     // BOSS 抽查面板
     if (this.boss instanceof MinibossReader && this.boss.quizActive) {
       this.boss.drawQuiz(ctx, W, H);
@@ -856,6 +922,9 @@ export class GameScene extends Phaser.Scene {
       ctx.textAlign = 'left';
     }
 
+    // 周目色调覆盖层
+    this.cycleEvent?.drawOverlay(ctx, this.logicW, this.logicH);
+
     this.worldTex.refresh();
   }
 
@@ -877,7 +946,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   _playerFire(now) {
-    if (now - this.player.lastFireAt < gameConfig.fireCooldownMs * this.player.fireRateMult) return;
+    // 武器系统：应用选中的基础武器射速倍率
+    const weapon = this.weapon?.getBulletParams() || { fireRateMult: 1, damage: 1, count: 1, spread: 0, pierce: false, explosive: false };
+    if (now - this.player.lastFireAt < gameConfig.fireCooldownMs * this.player.fireRateMult * weapon.fireRateMult) return;
     const rl = this.roguelike;
     const isSpecial = rl.specialBullet !== 'normal' && rl.specialAmmo > 0;
     this.player.lastFireAt = now;
@@ -887,10 +958,10 @@ export class GameScene extends Phaser.Scene {
     const targetY = this.boss ? this.boss.y + this.boss.h / 2 : (this.enemies[0]?.y || this.groundY);
     const dx = targetX - bx, dy = targetY - by;
     const L = Math.hypot(dx, dy) || 1;
-    let damage = 1 * this.player.attackMultiplier;
+    let damage = weapon.damage * this.player.attackMultiplier;
     let bulletColor = '#ffd43b';
-    let pierce = false;
-    let specialKind = null;
+    let pierce = weapon.pierce;
+    let specialKind = weapon.explosive ? 'explosive' : null;
 
     if (isSpecial) {
       rl.specialAmmo--;
@@ -908,6 +979,24 @@ export class GameScene extends Phaser.Scene {
           pierce = true;
           bulletColor = '#fa5252';
           break;
+        case 'spread':
+          specialKind = 'spread';
+          break;
+        case 'pierce':
+          pierce = true;
+          bulletColor = '#74c0fc';
+          break;
+        case 'circle':
+          specialKind = 'circle';
+          break;
+        case 'bounce':
+          specialKind = 'bounce';
+          bulletColor = '#aab0ff';
+          break;
+        case 'explosive':
+          specialKind = 'explosive';
+          bulletColor = '#ff922b';
+          break;
       }
       if (rl.specialAmmo <= 0) {
         rl.specialBullet = 'normal';
@@ -923,10 +1012,33 @@ export class GameScene extends Phaser.Scene {
       damage *= 2;
       this.player.critShots--;
     }
+    // 幸运暴击
+    const lucky = this.player.passives?.includes('lucky');
+    if (lucky && Math.random() < 0.2) damage *= 2;
+    // 狂战士
+    const berserk = this.player.passives?.includes('berserker');
+    if (berserk && this.player.hp / this.player.maxHp < 0.3) damage *= 1.5;
+
     const speed = gameConfig.bulletSpeed * this.player.bulletSpeedMult;
-    this.playerBullets.push(new Bullet(this, bx, by, dx / L * speed, dy / L * speed, {
-      damage, color: bulletColor, pierce, specialKind,
-    }));
+    const baseAngle = Math.atan2(dy, dx);
+    // 武器系统：多弹散射（覆盖武器 count/spread 与特殊散弹）
+    const count = specialKind === 'spread' ? 3 : (specialKind === 'circle' ? 8 : weapon.count);
+    for (let i = 0; i < count; i++) {
+      let angle;
+      if (specialKind === 'circle') {
+        angle = baseAngle + (i - (count - 1) / 2) * (Math.PI * 2 / count);
+      } else if (count > 1) {
+        const spread = weapon.spread || 0.4;
+        angle = baseAngle + (i - (count - 1) / 2) * spread;
+      } else {
+        angle = baseAngle;
+      }
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed;
+      this.playerBullets.push(new Bullet(this, bx, by, vx, vy, {
+        damage, color: bulletColor, pierce, specialKind,
+      }));
+    }
     this.audio?.shoot();
   }
 
@@ -1001,9 +1113,13 @@ export class GameScene extends Phaser.Scene {
         }
         const died = this.player.takeDamage(now, b.damage);
         // 定身效果
-        if (b.pinPlayer) {
+        if (b.pinPlayer || b.special === 'stun') {
           this.player.stunUntil = now + 2000;
-          this.showBanner('被张贴定身！', '#fa5252');
+          this.showBanner('被定身！', '#fa5252');
+        }
+        // 减速效果（逗号弹）
+        if (b.special === 'slow') {
+          this.player.slowUntil = now + 2000;
         }
         this._spawnParticles(this.player.x, this.player.y, '#fa5252', 6);
         this.audio?.hurt();
@@ -1086,6 +1202,9 @@ export class GameScene extends Phaser.Scene {
       this.showBanner('获得特殊子弹：' + reward.name + ' × ' + reward.ammo, '#ffd43b');
     }
     this.showBanner('击败 ' + (bossId === 'zjw' ? '肘击王' : bossId), '#51cf66');
+    // 成就检查
+    const newAch = AchievementSystem.checkAndUnlock();
+    newAch.forEach(a => AchievementSystem.showToast(this, a));
     // 触发剧情碎片
     const fragmentMap = {
       reader: 'reader_defeated',
@@ -1166,6 +1285,9 @@ export class GameScene extends Phaser.Scene {
     // 记录死亡
     RecordManager.recordDeath();
     RecordManager.addPlayTime(performance.now() - this.runStartTime);
+    // 成就检查（死亡次数里程碑）
+    const newAchDeath = AchievementSystem.checkAndUnlock();
+    newAchDeath.forEach(a => AchievementSystem.showToast(this, a));
     // 肘击王战失败计数（持久化到 meta，跨传承累计，每任起义军只触发一次三败结局）
     if (this.boss instanceof BossZJW) {
       this.threeDefeatTriggeredThisRun = this.threeDefeatTriggeredThisRun || false;
@@ -1183,7 +1305,32 @@ export class GameScene extends Phaser.Scene {
         MetaManager.save(meta);
       }
     }
-    // 传承
+    // 2-8 周目：主角不变，损失一半金币，在当前章节起点复活（规格 6.1.2）
+    if (this.cycleSys.isFixedProtagonist()) {
+      this.goldSys.setGold(Math.floor(this.goldSys.getGold() / 2));
+      // 回到当前章节第一间
+      this.roguelike.currentChapterIdx = Math.max(0, this.roguelike.currentChapterIdx);
+      this.roguelike._generateChapterRooms();
+      this.roguelike.currentRoom = 0;
+      this.scene.stop('UIScene');
+      this.showBanner('你倒下了……损失一半金币，从章节起点重新出发', '#fa5252');
+      // 短暂延迟后重载房间（保持当前场景，不换人）
+      this.time.delayedCall(1500, () => {
+        this.gameOver = false;
+        this.player.hp = this.player.maxHp;
+        this.player.invincibleUntil = performance.now() + 3000;
+        this.player.flashUntil = performance.now() + 3000;
+        this.enemies = [];
+        this.enemyBullets = [];
+        this.playerBullets = [];
+        this.boss = null;
+        this._loadRoom();
+        this.scene.launch('UIScene');
+      });
+      return;
+    }
+
+    // 1 周目：传承机制（换人继续）
     const snapshot = {
       items: this.itemSys.inventory.map(i => i.id),
       gold: this.goldSys.getGold(),
@@ -1218,7 +1365,21 @@ export class GameScene extends Phaser.Scene {
     this.gameOver = true;
     this.won = true;
     this.audio?.victory();
-    RecordManager.recordVictory(performance.now() - this.runStartTime);
+    const elapsed = performance.now() - this.runStartTime;
+    RecordManager.recordVictory(elapsed, this.cycleSys.getCurrentCycle());
+    // 速通/无伤成就
+    const meta = MetaManager.load();
+    if (elapsed <= 5 * 60 * 1000) {
+      meta.achievements = meta.achievements || [];
+      if (!meta.achievements.includes('speedrun_5min')) meta.achievements.push('speedrun_5min');
+    }
+    if ((meta.totalDeaths || 0) === 0) {
+      meta.achievements = meta.achievements || [];
+      if (!meta.achievements.includes('no_death_run')) meta.achievements.push('no_death_run');
+    }
+    MetaManager.save(meta);
+    const newAchWin = AchievementSystem.checkAndUnlock();
+    newAchWin.forEach(a => AchievementSystem.showToast(this, a));
     this.scene.stop('UIScene');
     this.scene.start('End', {
       win: true,
@@ -1241,6 +1402,44 @@ export class GameScene extends Phaser.Scene {
         life: 400 + Math.random() * 300, born: performance.now(),
       });
     }
+  }
+
+  // 碎纸机减速带（v1.5 杂兵）
+  _spawnSlowZone(x, y) {
+    this.slowZones = this.slowZones || [];
+    this.slowZones.push({ x, y, r: 50, born: performance.now(), life: 4000 });
+  }
+
+  // 满分者全屏光束（v1.5 精英）
+  _spawnBeam(x, y, dx, dy) {
+    const now = performance.now();
+    this.beams = this.beams || [];
+    // 沿 (dx,dy) 方向的全屏线段
+    const L = Math.hypot(dx, dy) || 1;
+    this.beams.push({
+      x1: x, y1: y,
+      x2: x + (dx / L) * 2000, y2: y + (dy / L) * 2000,
+      born: now, life: 600,
+    });
+    // 立即判定玩家是否在光束上（简化：距离线段 < 14）
+    const px = this.player.x + this.player.w / 2;
+    const py = this.player.y + this.player.h / 2;
+    const dist = this._pointToSegmentDist(px, py, x, y, x + (dx / L) * 2000, y + (dy / L) * 2000);
+    if (dist < 14 && now > (this.player.beamHitAt || 0) + 800) {
+      this.player.hp -= 1;
+      this.player.beamHitAt = now;
+      this.audio?.hurt();
+      if (this.player.hp <= 0) this._onPlayerDeath();
+    }
+  }
+
+  _pointToSegmentDist(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const L2 = dx * dx + dy * dy || 1;
+    let t = ((px - x1) * dx + (py - y1) * dy) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + t * dx, cy = y1 + t * dy;
+    return Math.hypot(px - cx, py - cy);
   }
 
   _rectHit(a, b) {

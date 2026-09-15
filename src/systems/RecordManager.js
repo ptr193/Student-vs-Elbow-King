@@ -26,13 +26,28 @@ export class RecordManager {
     RecordManager.save(r);
   }
 
-  static recordVictory(clearTimeMs) {
+  static recordVictory(clearTimeMs, cycle = 1) {
     const r = RecordManager.load();
     r.totalVictories = (r.totalVictories || 0) + 1;
     if (!r.bestClearTime || clearTimeMs < r.bestClearTime) {
       r.bestClearTime = clearTimeMs;
     }
+    // 排行榜：速通 Top 10 + 最低死亡数 Top 10
+    r.leaderboard = r.leaderboard || { speedrun: [], leastDeaths: [] };
+    const entry = { time: clearTimeMs, cycle, date: Date.now(), deaths: r.totalDeaths || 0 };
+    r.leaderboard.speedrun.push(entry);
+    r.leaderboard.speedrun.sort((a, b) => a.time - b.time);
+    r.leaderboard.speedrun = r.leaderboard.speedrun.slice(0, 10);
+    const deathEntry = { deaths: r.totalDeaths || 0, time: clearTimeMs, cycle, date: Date.now() };
+    r.leaderboard.leastDeaths.push(deathEntry);
+    r.leaderboard.leastDeaths.sort((a, b) => a.deaths - b.deaths);
+    r.leaderboard.leastDeaths = r.leaderboard.leastDeaths.slice(0, 10);
     RecordManager.save(r);
+  }
+
+  static getLeaderboard() {
+    const r = RecordManager.load();
+    return r.leaderboard || { speedrun: [], leastDeaths: [] };
   }
 
   static recordPoem() {

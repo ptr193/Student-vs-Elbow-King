@@ -46,6 +46,12 @@ export class Player {
 
   update(input, dt, groundY) {
     const now = performance.now();
+    // 控制锁定（如三周目"为什么"动画期间）
+    if (this.controlLocked) {
+      this.vx = 0;
+      input.jumpPressed = false;
+      return;
+    }
     // 减速
     let speed = playerConfig.moveSpeed * this.moveSpeedMult;
     if (now < this.slowUntil) speed *= 0.5;

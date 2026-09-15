@@ -1,0 +1,7 @@
+[
+  { "id": "pistol", "name": "手枪", "mode": "single", "damage": 1, "fireRate": 1.0, "bulletCount": 1, "spread": 0, "desc": "单发精准射击" },
+  { "id": "shotgun", "name": "霰弹枪", "mode": "spread", "damage": 1, "fireRate": 1.4, "bulletCount": 3, "spread": 0.4, "desc": "3 发扇形散射" },
+  { "id": "smg", "name": "冲锋枪", "mode": "rapid", "damage": 1, "fireRate": 0.5, "bulletCount": 1, "spread": 0.1, "desc": "高射速连发" },
+  { "id": "rifle", "name": "步枪", "mode": "pierce", "damage": 2, "fireRate": 1.2, "bulletCount": 1, "spread": 0, "desc": "穿透敌人的强力射击" },
+  { "id": "launcher", "name": "榴弹", "mode": "explosive", "damage": 3, "fireRate": 2.0, "bulletCount": 1, "spread": 0, "desc": "高伤害爆炸弹，射速慢" }
+]
