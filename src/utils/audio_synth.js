@@ -132,12 +132,13 @@ export class AudioSynth {
     this.stopBgm();
     if (!this.ctx || !this.enabled) return;
     const patterns = {
-      menu:    { notes: [110, 146, 110, 164], type: 'sawtooth', tempo: 500 },
-      battle:  { notes: [146, 174, 196, 174], type: 'square', tempo: 300 },
-      boss:    { notes: [98, 116, 130, 116], type: 'sawtooth', tempo: 250 },
-      bossP2:  { notes: [87, 116, 146, 116], type: 'sawtooth', tempo: 180 },
-      victory: { notes: [261, 329, 392, 523], type: 'sine', tempo: 400 },
-      defeat:  { notes: [196, 174, 146, 110], type: 'sine', tempo: 450 },
+      menu:     { notes: [110, 146, 110, 164], type: 'sawtooth', tempo: 500 },
+      battle:   { notes: [146, 174, 196, 174], type: 'square', tempo: 300 },
+      miniboss: { notes: [196, 233, 261, 233], type: 'sawtooth', tempo: 200 },
+      boss:     { notes: [98, 116, 130, 116], type: 'sawtooth', tempo: 250 },
+      bossP2:   { notes: [87, 116, 146, 116], type: 'sawtooth', tempo: 180 },
+      victory:  { notes: [261, 329, 392, 523], type: 'sine', tempo: 400 },
+      defeat:   { notes: [196, 174, 146, 110], type: 'sine', tempo: 450 },
     };
     const p = patterns[type] || patterns.menu;
     let idx = 0;

@@ -2,7 +2,7 @@
 import { AudioSynth } from '../utils/audio_synth.js';
 import { SettingsManager } from './SettingsManager.js';
 
-const BGM_TYPES = ['menu', 'battle', 'boss', 'bossP2', 'victory', 'defeat'];
+const BGM_TYPES = ['menu', 'battle', 'miniboss', 'boss', 'bossP2', 'victory', 'defeat'];
 
 export class AudioSystem {
   constructor() {
@@ -14,7 +14,10 @@ export class AudioSystem {
     this._sfxThrottleMs = 35; // 同名音效最小间隔，防止叠加爆音
   }
 
-  init() { this.synth.init(); }
+  init() {
+    this.synth.init();
+    this.applySettings();
+  }
 
   // 用户首次交互后恢复 AudioContext
   resume() { this.synth.resume(); }
@@ -25,6 +28,12 @@ export class AudioSystem {
     this.setBgmVolume(s.bgmVolume);
     this.setSfxVolume(s.sfxVolume);
   }
+
+  // 直接启动 BGM（兼容场景调用 this.audio.startBgm）
+  startBgm(type) { this.playBgm(type); }
+
+  // 叙事文字逐字音效
+  blip() { this._throttled('blip', this.synth.blip); }
 
   setBgmVolume(v) { this.synth.setBgmVolume(v); }
   setSfxVolume(v) { this.synth.setSfxVolume(v); }

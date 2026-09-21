@@ -144,7 +144,106 @@ export class MenuScene extends Phaser.Scene {
   }
 
   _showSettings() {
-    this._showModal('设置', 'BGM 音量：' + Math.round(this.settings.bgmVolume * 100) + '%\n音效音量：' + Math.round(this.settings.sfxVolume * 100) + '%\n屏幕震动：' + (this.settings.screenShake ? '开' : '关'));
+    const W = this.scale.width, H = this.scale.height;
+    const objs = [];
+    const bg = this.add.rectangle(0, 0, W, H, 0x000000, 0.75).setOrigin(0, 0);
+    objs.push(bg);
+    const panel = this.add.rectangle(W / 2, H / 2, 520, 360, 0x141628, 0.96)
+      .setStrokeStyle(2, 0xffd43b, 0.4);
+    objs.push(panel);
+    const title = this.add.text(W / 2, H / 2 - 140, '设置', {
+      fontFamily: 'sans-serif', fontSize: '28px', color: '#ffd43b',
+    }).setOrigin(0.5);
+    objs.push(title);
+
+    const settings = SettingsManager.load();
+
+    // BGM 音量
+    const bgmLabel = this.add.text(W / 2 - 180, H / 2 - 70, 'BGM 音量', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#adb5bd',
+    }).setOrigin(0, 0.5);
+    objs.push(bgmLabel);
+    const bgmVal = this.add.text(W / 2 + 160, H / 2 - 70, Math.round(settings.bgmVolume * 100) + '%', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#fff',
+    }).setOrigin(1, 0.5);
+    objs.push(bgmVal);
+    const bgmMinus = this._makeBtn(W / 2 + 40, H / 2 - 70, '−', () => {
+      settings.bgmVolume = Math.max(0, settings.bgmVolume - 0.1);
+      SettingsManager.save(settings);
+      bgmVal.setText(Math.round(settings.bgmVolume * 100) + '%');
+      this.game.registry.get('audio')?.setBgmVolume(settings.bgmVolume);
+    });
+    const bgmPlus = this._makeBtn(W / 2 + 110, H / 2 - 70, '+', () => {
+      settings.bgmVolume = Math.min(1, settings.bgmVolume + 0.1);
+      SettingsManager.save(settings);
+      bgmVal.setText(Math.round(settings.bgmVolume * 100) + '%');
+      this.game.registry.get('audio')?.setBgmVolume(settings.bgmVolume);
+    });
+    objs.push(...bgmMinus, ...bgmPlus);
+
+    // 音效音量
+    const sfxLabel = this.add.text(W / 2 - 180, H / 2 - 10, '音效音量', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#adb5bd',
+    }).setOrigin(0, 0.5);
+    objs.push(sfxLabel);
+    const sfxVal = this.add.text(W / 2 + 160, H / 2 - 10, Math.round(settings.sfxVolume * 100) + '%', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#fff',
+    }).setOrigin(1, 0.5);
+    objs.push(sfxVal);
+    const sfxMinus = this._makeBtn(W / 2 + 40, H / 2 - 10, '−', () => {
+      settings.sfxVolume = Math.max(0, settings.sfxVolume - 0.1);
+      SettingsManager.save(settings);
+      sfxVal.setText(Math.round(settings.sfxVolume * 100) + '%');
+      this.game.registry.get('audio')?.setSfxVolume(settings.sfxVolume);
+    });
+    const sfxPlus = this._makeBtn(W / 2 + 110, H / 2 - 10, '+', () => {
+      settings.sfxVolume = Math.min(1, settings.sfxVolume + 0.1);
+      SettingsManager.save(settings);
+      sfxVal.setText(Math.round(settings.sfxVolume * 100) + '%');
+      this.game.registry.get('audio')?.setSfxVolume(settings.sfxVolume);
+    });
+    objs.push(...sfxMinus, ...sfxPlus);
+
+    // 屏幕震动
+    const shakeLabel = this.add.text(W / 2 - 180, H / 2 + 50, '屏幕震动', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#adb5bd',
+    }).setOrigin(0, 0.5);
+    objs.push(shakeLabel);
+    const shakeBtn = this.add.rectangle(W / 2 + 100, H / 2 + 50, 120, 36, 0x2a2a4a, 0.9)
+      .setStrokeStyle(1, 0x69db7c, 0.6);
+    const shakeTxt = this.add.text(W / 2 + 100, H / 2 + 50, settings.screenShake ? '开' : '关', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: settings.screenShake ? '#69db7c' : '#fa5252',
+    }).setOrigin(0.5);
+    objs.push(shakeBtn, shakeTxt);
+    shakeBtn.setInteractive({ useHandCursor: true });
+    shakeBtn.on('pointerdown', () => {
+      settings.screenShake = !settings.screenShake;
+      SettingsManager.save(settings);
+      shakeTxt.setText(settings.screenShake ? '开' : '关');
+      shakeTxt.setColor(settings.screenShake ? '#69db7c' : '#fa5252');
+    });
+
+    // 返回
+    const closeBtn = this.add.rectangle(W / 2, H / 2 + 130, 120, 40, 0xfa5252, 0.9)
+      .setStrokeStyle(1, 0xffffff, 0.3);
+    const closeTxt = this.add.text(W / 2, H / 2 + 130, '返回', {
+      fontFamily: 'sans-serif', fontSize: '18px', color: '#fff',
+    }).setOrigin(0.5);
+    objs.push(closeBtn, closeTxt);
+    closeBtn.setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', () => objs.forEach(o => o.destroy()));
+  }
+
+  _makeBtn(x, y, label, onClick) {
+    const btn = this.add.rectangle(x, y, 36, 32, 0x2a2a4a, 0.9).setStrokeStyle(1, 0xffd43b, 0.5);
+    const txt = this.add.text(x, y, label, {
+      fontFamily: 'sans-serif', fontSize: '20px', color: '#ffd43b',
+    }).setOrigin(0.5);
+    btn.setInteractive({ useHandCursor: true });
+    btn.on('pointerover', () => btn.setFillStyle(0x3a3a5a, 0.95));
+    btn.on('pointerout', () => btn.setFillStyle(0x2a2a4a, 0.9));
+    btn.on('pointerdown', onClick);
+    return [btn, txt];
   }
 
   _showAbout() {

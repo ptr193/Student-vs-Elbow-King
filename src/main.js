@@ -14,9 +14,9 @@ import { CycleTransitionScene } from './scenes/CycleTransitionScene.js';
 import { AchievementScene } from './scenes/AchievementScene.js';
 import { WeaponSelectScene } from './scenes/WeaponSelectScene.js';
 import { LeaderboardScene } from './scenes/LeaderboardScene.js';
-import { AudioSynth } from './utils/audio_synth.js';
+import { AudioSystem } from './systems/AudioSystem.js';
 
-const audio = new AudioSynth();
+const audio = new AudioSystem();
 audio.init();
 
 window.addEventListener('pointerdown', () => audio.resume(), { once: false });

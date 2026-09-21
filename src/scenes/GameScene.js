@@ -416,6 +416,7 @@ export class GameScene extends Phaser.Scene {
       if (mb) {
         this.boss = new mb.cls(this, this.logicW * 0.7, 200);
         this.showBanner('小 BOSS：' + mb.name, mb.color);
+        this.audio?.startBgm('miniboss');
       }
     } else if (room.type === 'stageBoss' && ch.stageBoss === 'bulletin') {
       this.boss = new StageBossBulletin(this, this.logicW * 0.7, 150);
@@ -1013,11 +1014,10 @@ export class GameScene extends Phaser.Scene {
       this.player.critShots--;
     }
     // 幸运暴击
-    const lucky = this.player.passives?.includes('lucky');
-    if (lucky && Math.random() < 0.2) damage *= 2;
+    const passiveId = this.roguelike.passiveSkill?.id;
+    if (passiveId === 'lucky' && Math.random() < 0.2) damage *= 2;
     // 狂战士
-    const berserk = this.player.passives?.includes('berserker');
-    if (berserk && this.player.hp / this.player.maxHp < 0.3) damage *= 1.5;
+    if (passiveId === 'berserker' && this.player.hp / this.player.maxHp < 0.3) damage *= 1.5;
 
     const speed = gameConfig.bulletSpeed * this.player.bulletSpeedMult;
     const baseAngle = Math.atan2(dy, dx);
@@ -1453,11 +1453,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   _togglePause() {
-    this.paused = !this.paused;
+    if (this.gameOver) return;
     if (this.paused) {
+      // 恢复
+      this.paused = false;
+      this.scene.resume();
+      this.scene.stop('UIScene');
+      this.scene.launch('UIScene');
+      this.audio?.unduckBgm();
+    } else {
+      // 暂停
+      this.paused = true;
       this.scene.pause();
       this.scene.stop('UIScene');
       this.scene.launch('UIScene', { pause: true });
+      this.audio?.duckBgm();
     }
   }
 
