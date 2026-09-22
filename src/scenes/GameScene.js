@@ -35,9 +35,11 @@ export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
   init(data) {
-    this.logicW = gameConfig.logicWidth;
-    this.logicH = gameConfig.logicHeight;
-    this.groundY = this.logicH - 80;
+    // 横屏游戏固定设计分辨率 1280x720（16:9）
+    // Scale.FIT 保证任意屏幕上宽高比不变，不拉伸、不旋转
+    this.logicW = 1280;
+    this.logicH = 720;
+    this.groundY = this.logicH - 100;
     // 三败结局选择"不放弃"后回到游戏，授予"信念"
     this.fromPersevere = !!data?.fromPersevere;
     this.grantFaith = !!data?.grantFaith;
@@ -66,6 +68,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.worldTex = this.textures.createCanvas('worldTex', this.logicW, this.logicH);
     this.worldCtx = this.worldTex.getContext();
+    // FIT 模式下画布尺寸 == 逻辑尺寸，无需缩放
     this.worldImage = this.add.image(0, 0, 'worldTex').setOrigin(0, 0).setDepth(0);
     this._bgColor = '#2a1a3a';
 
@@ -646,28 +649,81 @@ export class GameScene extends Phaser.Scene {
   _renderWorld() {
     const ctx = this.worldCtx;
     const W = this.logicW, H = this.logicH;
-    // 背景
-    ctx.fillStyle = this._bgColor || '#2a1a3a';
-    ctx.fillRect(0, 0, W, H);
-    // 网格
+    // 背景（多层渐变：天空→远景→近景，营造纵深感）
+    const bgColor = this._bgColor || '#2a1a3a';
+    // 天空渐变
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, this.groundY);
+    skyGrad.addColorStop(0, this._lightenColor(bgColor, 45));
+    skyGrad.addColorStop(0.4, this._lightenColor(bgColor, 15));
+    skyGrad.addColorStop(1, bgColor);
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, W, this.groundY + 48);
+    // 中央光晕（月光/灯光感）
+    const haloGrad = ctx.createRadialGradient(W * 0.35, H * 0.25, 20, W * 0.35, H * 0.25, W * 0.5);
+    haloGrad.addColorStop(0, this._lightenColor(bgColor, 70) + '');
+    haloGrad.addColorStop(0.3, this._lightenColor(bgColor, 30) + '');
+    haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = haloGrad;
+    ctx.fillRect(0, 0, W, this.groundY + 48);
+    ctx.globalAlpha = 1;
+    // 远景建筑剪影（教学楼轮廓，营造场景感）
+    ctx.fillStyle = this._darkenColor(bgColor, 35);
+    const buildSeed = (this.roguelike?.currentChapter || 0) * 7 + (this.roguelike?.currentRoom || 0);
+    for (let i = 0; i < 8; i++) {
+      const bx = (i * 170 + (buildSeed * 23) % 60) % W;
+      const bh = 80 + ((buildSeed + i * 13) % 120);
+      const bw = 90 + ((buildSeed + i * 7) % 50);
+      ctx.fillRect(bx, this.groundY + 48 - bh, bw, bh);
+      // 窗户光点
+      ctx.fillStyle = 'rgba(255,212,59,0.12)';
+      for (let wy = this.groundY + 48 - bh + 10; wy < this.groundY + 38; wy += 16) {
+        for (let wx = bx + 8; wx < bx + bw - 8; wx += 14) {
+          if ((wx + wy + i) % 3 === 0) ctx.fillRect(wx, wy, 6, 8);
+        }
+      }
+      ctx.fillStyle = this._darkenColor(bgColor, 35);
+    }
+    // 网格（淡淡的透视感）
     ctx.strokeStyle = 'rgba(255,255,255,0.04)';
     ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 60) {
+    for (let x = 0; x < W; x += 80) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
-    for (let y = 0; y < H; y += 60) {
+    for (let y = 0; y < H; y += 80) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
-    // 地面
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    // 地面（渐变 + 纹理线）
+    const groundGrad = ctx.createLinearGradient(0, this.groundY + 48, 0, H);
+    groundGrad.addColorStop(0, this._darkenColor(bgColor, 10));
+    groundGrad.addColorStop(0.3, this._darkenColor(bgColor, 30));
+    groundGrad.addColorStop(1, this._darkenColor(bgColor, 55));
+    ctx.fillStyle = groundGrad;
     ctx.fillRect(0, this.groundY + 48, W, H - this.groundY - 48);
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    // 地面纹理线（地砖缝）
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += 64) {
+      ctx.beginPath(); ctx.moveTo(x, this.groundY + 48); ctx.lineTo(x, H); ctx.stroke();
+    }
+    // 地面边缘发光线（地平线）
+    const lineGrad = ctx.createLinearGradient(0, this.groundY + 48, W, this.groundY + 48);
+    lineGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    lineGrad.addColorStop(0.3, 'rgba(255,212,59,0.25)');
+    lineGrad.addColorStop(0.7, 'rgba(255,212,59,0.25)');
+    lineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lineGrad;
     ctx.fillRect(0, this.groundY + 48, W, 2);
 
-    // 门（右侧出口）
+    // 门（右侧出口）- 带光晕
     const doorX = W - 30;
     if (this.roomCleared) {
-      // 门打开 - 绿色光门
+      // 门打开 - 绿色光门（径向渐变光晕）
+      const doorGrad = ctx.createRadialGradient(doorX, this.groundY * 0.5, 10, doorX, this.groundY * 0.5, 80);
+      doorGrad.addColorStop(0, 'rgba(81,207,102,0.5)');
+      doorGrad.addColorStop(1, 'rgba(81,207,102,0)');
+      ctx.fillStyle = doorGrad;
+      ctx.fillRect(doorX - 60, 0, 120, this.groundY + 48);
       ctx.fillStyle = 'rgba(81,207,102,0.3)';
       ctx.fillRect(doorX - 20, 0, 50, this.groundY + 48);
       ctx.fillStyle = '#51cf66';
@@ -944,6 +1000,36 @@ export class GameScene extends Phaser.Scene {
     }
     if (line) lines.push(line);
     return lines;
+  }
+
+  // 颜色辅助：变亮/变暗
+  _lightenColor(hex, amount) {
+    const c = this._parseColor(hex);
+    if (!c) return hex;
+    const r = Math.min(255, c.r + amount);
+    const g = Math.min(255, c.g + amount);
+    const b = Math.min(255, c.b + amount);
+    return `rgb(${r},${g},${b})`;
+  }
+  _darkenColor(hex, amount) {
+    const c = this._parseColor(hex);
+    if (!c) return hex;
+    const r = Math.max(0, c.r - amount);
+    const g = Math.max(0, c.g - amount);
+    const b = Math.max(0, c.b - amount);
+    return `rgb(${r},${g},${b})`;
+  }
+  _parseColor(hex) {
+    if (!hex) return null;
+    const m = hex.replace('#', '');
+    if (m.length === 6) {
+      return {
+        r: parseInt(m.slice(0, 2), 16),
+        g: parseInt(m.slice(2, 4), 16),
+        b: parseInt(m.slice(4, 6), 16),
+      };
+    }
+    return null;
   }
 
   _playerFire(now) {

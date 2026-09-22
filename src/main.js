@@ -24,17 +24,22 @@ window.addEventListener('pointerdown', () => audio.resume(), { once: false });
 const config = {
   type: Phaser.AUTO,
   parent: 'app',
-  width: 960,
-  height: 540,
+  // 固定横屏设计分辨率：16:9 横屏游戏
+  // Scale.FIT 会保持宽高比，在任意屏幕上居中显示（竖屏时上下留黑边，不拉伸）
+  width: 1280,
+  height: 720,
   backgroundColor: '#0a0a14',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    expandParent: true,
   },
   scene: [BootScene, MenuScene, OpeningNarrativeScene, WeaponSelectScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene, CollectionScene, AboutScene, CycleTransitionScene, AchievementScene, LeaderboardScene],
   render: {
     pixelArt: false,
     antialias: true,
+    powerPreference: 'high-performance',
+    roundPixels: false,
   },
 };
 

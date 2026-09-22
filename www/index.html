@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a14">
@@ -19,23 +19,15 @@
   }
   #app {
     position: fixed; inset: 0;
-    display: flex; align-items: center; justify-content: center;
     background: #000;
+    overflow: hidden;
   }
-  #game-canvas {
+  /* Phaser Scale.FIT 自动管理 canvas 尺寸，无需额外 CSS 约束 */
+  #app canvas {
     display: block;
-    max-width: 100%;
-    max-height: 100%;
-  }
-  /* 竖屏时旋转铺满 */
-  @media (orientation: portrait) {
-    #app canvas {
-      transform: rotate(90deg);
-      transform-origin: center center;
-    }
   }
 </style>
-  <script type="module" crossorigin src="./assets/index-B-t967Tl.js"></script>
+  <script type="module" crossorigin src="./assets/index-tEcs8JKK.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/phaser-0RJB29YE.js">
 </head>
 <body>
