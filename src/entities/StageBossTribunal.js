@@ -104,7 +104,8 @@ export class StageBossTribunal {
       // 多道冲击波
       for (let i = 0; i < count; i++) {
         setTimeout(() => {
-          if (player.y > this.scene.groundY - 60) {
+          // 俯视角：改为距离判定（冲击波范围内受伤）
+          if (Math.hypot(player.x - (this.x + this.w / 2), player.y - (this.y + this.h / 2)) < 200) {
             player.takeDamage(performance.now(), 1);
             this.scene.audio?.hurt();
           }

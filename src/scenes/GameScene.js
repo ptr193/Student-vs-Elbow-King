@@ -35,11 +35,11 @@ export class GameScene extends Phaser.Scene {
   constructor() { super('Game'); }
 
   init(data) {
-    // 横屏游戏固定设计分辨率 1280x720（16:9）
+    // 2.5D 俯视角肉鸽：固定横屏设计分辨率 1280x720（16:9）
     // Scale.FIT 保证任意屏幕上宽高比不变，不拉伸、不旋转
     this.logicW = 1280;
     this.logicH = 720;
-    this.groundY = this.logicH - 100;
+    // 俯视角：无地面线，玩家可在整个房间内四向自由移动
     // 三败结局选择"不放弃"后回到游戏，授予"信念"
     this.fromPersevere = !!data?.fromPersevere;
     this.grantFaith = !!data?.grantFaith;
@@ -88,8 +88,8 @@ export class GameScene extends Phaser.Scene {
     this.inputState = { moveX: 0, moveY: 0, fire: false, jump: false, jumpPressed: false };
     this._setupInput();
 
-    // 玩家
-    this.player = new Player(this, 60, this.groundY);
+    // 玩家（俯视角：起始于房间左侧中部，可四向移动）
+    this.player = new Player(this, 120, this.logicH / 2);
 
     // ===== 周目配置应用（规格 6.1.2 固定主角 + 血条封锁）=====
     if (this.cycleSys.isFixedProtagonist()) {
@@ -312,7 +312,7 @@ export class GameScene extends Phaser.Scene {
       case 'ink': {
         // 墨迹区域：持续伤害
         const zone = {
-          x: x - 15, y: this.groundY - 8, w: 30, h: 16,
+          x: x - 15, y: y - 8, w: 30, h: 16,
           damage: 0.5, until: performance.now() + 3000, kind: 'ink',
         };
         this.inkZones = this.inkZones || [];
@@ -342,16 +342,12 @@ export class GameScene extends Phaser.Scene {
     this._movePointer = null;
     this._moveCenter = { x: 0, y: 0 };
 
-    // 右侧射击区
-    const fireZone = this.add.zone(this.scale.width * 0.5, 0, this.scale.width * 0.5, this.scale.height * 0.6)
+    // 右侧射击区（俯视角：按住即自动瞄准最近敌人射击）
+    const fireZone = this.add.zone(this.scale.width * 0.5, 0, this.scale.width * 0.5, this.scale.height)
       .setOrigin(0, 0).setInteractive();
     fireZone.on('pointerdown', () => { this.inputState.fire = true; });
     fireZone.on('pointerup', () => { this.inputState.fire = false; });
-
-    // 右侧跳跃按钮
-    const jumpBtn = this.add.zone(this.scale.width * 0.75, this.scale.height * 0.8, this.scale.width * 0.4, this.scale.height * 0.3)
-      .setOrigin(0.5).setInteractive();
-    jumpBtn.on('pointerdown', () => { this.inputState.jumpPressed = true; });
+    fireZone.on('pointerleave', () => { this.inputState.fire = false; });
 
     // 抽查点击
     this.input.on('pointerdown', (p) => {
@@ -395,8 +391,8 @@ export class GameScene extends Phaser.Scene {
     this.enemyBullets = [];
     this.zjAttacks = [];
     this.inkZones = [];
-    this.player.x = 60;
-    this.player.y = this.groundY;
+    this.player.x = 120;
+    this.player.y = this.logicH / 2;
     // 房间初始无敌，避免刚出生就被秒
     this.player.invincibleUntil = performance.now() + 3000;
     this.player.flashUntil = performance.now() + 3000;
@@ -430,7 +426,7 @@ export class GameScene extends Phaser.Scene {
     } else if (ch.id === 'C3' && room.room === this.roguelike.roomsPerSubArea - 2 &&
                (this.cycleSys.getSpecialEvent() === 'watershed_boss' || this.cycleSys.getSpecialEvent() === 'watershed_boss_plus')) {
       // 六/七周目：C3 倒数第二间生成"一生分水岭"BOSS
-      this.boss = new BossWatershed(this, this.logicW * 0.7, this.groundY - 60);
+      this.boss = new BossWatershed(this, this.logicW * 0.7, this.logicH * 0.5);
       this.showBanner('关卡 BOSS：一生分水岭', '#fa5252');
       this.audio?.startBgm('boss');
     } else if (ch.id === 'C3' && room.room === this.roguelike.roomsPerSubArea - 1) {
@@ -440,7 +436,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       // 最终 BOSS 肘击王（C3 最后一间）
-      this.boss = new BossZJW(this, this.logicW * 0.75, this.groundY + 80 - 200);
+      this.boss = new BossZJW(this, this.logicW * 0.75, this.logicH * 0.5);
       this.boss.chargeMaxDistance = this.logicW * 0.55;
       this.boss.nextAttackAt = performance.now() + 2500; // 给玩家反应时间
       this.showBanner('最终 BOSS：肘击王', '#ff006e');
@@ -484,7 +480,7 @@ export class GameScene extends Phaser.Scene {
       });
       // 道具房
       if (room.type === 'item') {
-        this._spawnItemDrop(this.logicW * 0.5, this.groundY - 20);
+        this._spawnItemDrop(this.logicW * 0.5, this.logicH * 0.5);
       }
       // NPC 站点生成（每局 1–2 个站点，背刺 NPC 救出后下一站点出现）
       if (this.npcSys.shouldSpawnStation(room) && this.npcs.length === 0) {
@@ -507,10 +503,14 @@ export class GameScene extends Phaser.Scene {
     // 对话进行中：暂停游戏
     if (this.dialogueActive) return;
 
-    // 键盘轮询
-    if (this.keys.left.isDown) this.inputState.moveX = -1;
-    else if (this.keys.right.isDown) this.inputState.moveX = 1;
-    else if (!this._movePointer) this.inputState.moveX = 0;
+    // 键盘轮询（俯视角：WASD / 方向键 四向移动）
+    let mx = 0, my = 0;
+    if (this.keys.left.isDown) mx -= 1;
+    if (this.keys.right.isDown) mx += 1;
+    if (this.keys.up.isDown) my -= 1;
+    if (this.keys.down.isDown) my += 1;
+    this.inputState.moveX = mx;
+    this.inputState.moveY = my;
 
     // 玩家（减速带判定）
     if (this.slowZones) {
@@ -523,10 +523,10 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    this.player.update(this.inputState, delta, this.groundY);
-    // 门锁限制
-    if (!this.roomCleared && this.player.x > this.logicW - 60) {
-      this.player.x = this.logicW - 60;
+    this.player.update(this.inputState, delta);
+    // 房间边界限制（俯视角：四面墙，门锁时禁止靠近出口侧）
+    if (!this.roomCleared && this.player.x > this.logicW - 80) {
+      this.player.x = this.logicW - 80;
     }
 
     // 射击
@@ -572,10 +572,10 @@ export class GameScene extends Phaser.Scene {
     this.collisionSys.update(now);
     this.cycleEvent?.update(now, delta);
 
-    // 粒子
+    // 粒子（俯视角：无重力，自然衰减）
     this.particles.forEach(p => {
       p.x += p.vx; p.y += p.vy;
-      p.vy += 0.05;
+      p.vx *= 0.96; p.vy *= 0.96;
     });
     this.particles = this.particles.filter(p => now - p.born < p.life);
     // 清理过期减速带与光束
@@ -586,7 +586,7 @@ export class GameScene extends Phaser.Scene {
     if (this.itemDrops) {
       this.itemDrops.forEach((d, i) => {
         d.bob += 0.05;
-        if (Math.abs(this.player.x + this.player.w / 2 - d.x) < 40 && Math.abs(this.player.y - d.y) < 60) {
+        if (Math.hypot(this.player.x - d.x, this.player.y - d.y) < 50) {
           if (this.itemSys.addItem(d.id)) {
             this.audio?.pickup();
             this.showBanner('获得道具：' + d.id, '#51cf66');
@@ -637,8 +637,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // 玩家走到门口进入下一间
-    if (this.roomCleared && this.player.x > this.logicW - 50) {
+    // 玩家走到右侧出口门进入下一间（俯视角：靠近右侧出口区域）
+    if (this.roomCleared && this.player.x > this.logicW - 70) {
       this._nextRoom();
       return;
     }
@@ -649,95 +649,94 @@ export class GameScene extends Phaser.Scene {
   _renderWorld() {
     const ctx = this.worldCtx;
     const W = this.logicW, H = this.logicH;
-    // 背景（多层渐变：天空→远景→近景，营造纵深感）
     const bgColor = this._bgColor || '#2a1a3a';
-    // 天空渐变
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, this.groundY);
-    skyGrad.addColorStop(0, this._lightenColor(bgColor, 45));
-    skyGrad.addColorStop(0.4, this._lightenColor(bgColor, 15));
-    skyGrad.addColorStop(1, bgColor);
-    ctx.fillStyle = skyGrad;
-    ctx.fillRect(0, 0, W, this.groundY + 48);
-    // 中央光晕（月光/灯光感）
-    const haloGrad = ctx.createRadialGradient(W * 0.35, H * 0.25, 20, W * 0.35, H * 0.25, W * 0.5);
-    haloGrad.addColorStop(0, this._lightenColor(bgColor, 70) + '');
-    haloGrad.addColorStop(0.3, this._lightenColor(bgColor, 30) + '');
-    haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = haloGrad;
-    ctx.fillRect(0, 0, W, this.groundY + 48);
-    ctx.globalAlpha = 1;
-    // 远景建筑剪影（教学楼轮廓，营造场景感）
-    ctx.fillStyle = this._darkenColor(bgColor, 35);
-    const buildSeed = (this.roguelike?.currentChapter || 0) * 7 + (this.roguelike?.currentRoom || 0);
-    for (let i = 0; i < 8; i++) {
-      const bx = (i * 170 + (buildSeed * 23) % 60) % W;
-      const bh = 80 + ((buildSeed + i * 13) % 120);
-      const bw = 90 + ((buildSeed + i * 7) % 50);
-      ctx.fillRect(bx, this.groundY + 48 - bh, bw, bh);
-      // 窗户光点
-      ctx.fillStyle = 'rgba(255,212,59,0.12)';
-      for (let wy = this.groundY + 48 - bh + 10; wy < this.groundY + 38; wy += 16) {
-        for (let wx = bx + 8; wx < bx + bw - 8; wx += 14) {
-          if ((wx + wy + i) % 3 === 0) ctx.fillRect(wx, wy, 6, 8);
+
+    // ===== 俯视角地板：棋盘格地砖 + 径向光照 =====
+    const floorTop = this._lightenColor(bgColor, 12);
+    const floorBot = this._darkenColor(bgColor, 25);
+    const floorGrad = ctx.createLinearGradient(0, 0, 0, H);
+    floorGrad.addColorStop(0, floorTop);
+    floorGrad.addColorStop(1, floorBot);
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // 地砖纹理（棋盘格）
+    const tile = 64;
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    for (let y = 0; y < H; y += tile) {
+      for (let x = 0; x < W; x += tile) {
+        if (((x / tile) + (y / tile)) % 2 === 0) {
+          ctx.fillRect(x, y, tile, tile);
         }
       }
-      ctx.fillStyle = this._darkenColor(bgColor, 35);
     }
-    // 网格（淡淡的透视感）
-    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    // 地砖缝隙线
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
     ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 80) {
+    for (let x = 0; x <= W; x += tile) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
-    for (let y = 0; y < H; y += 80) {
+    for (let y = 0; y <= H; y += tile) {
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
-    // 地面（渐变 + 纹理线）
-    const groundGrad = ctx.createLinearGradient(0, this.groundY + 48, 0, H);
-    groundGrad.addColorStop(0, this._darkenColor(bgColor, 10));
-    groundGrad.addColorStop(0.3, this._darkenColor(bgColor, 30));
-    groundGrad.addColorStop(1, this._darkenColor(bgColor, 55));
-    ctx.fillStyle = groundGrad;
-    ctx.fillRect(0, this.groundY + 48, W, H - this.groundY - 48);
-    // 地面纹理线（地砖缝）
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 64) {
-      ctx.beginPath(); ctx.moveTo(x, this.groundY + 48); ctx.lineTo(x, H); ctx.stroke();
-    }
-    // 地面边缘发光线（地平线）
-    const lineGrad = ctx.createLinearGradient(0, this.groundY + 48, W, this.groundY + 48);
-    lineGrad.addColorStop(0, 'rgba(255,255,255,0)');
-    lineGrad.addColorStop(0.3, 'rgba(255,212,59,0.25)');
-    lineGrad.addColorStop(0.7, 'rgba(255,212,59,0.25)');
-    lineGrad.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = lineGrad;
-    ctx.fillRect(0, this.groundY + 48, W, 2);
 
-    // 门（右侧出口）- 带光晕
-    const doorX = W - 30;
+    // 中央光照（玩家附近更亮，营造 2.5D 纵深感）
+    const px = this.player.x, py = this.player.y;
+    const lightGrad = ctx.createRadialGradient(px, py, 40, px, py, 420);
+    lightGrad.addColorStop(0, 'rgba(255,255,255,0.10)');
+    lightGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = lightGrad;
+    ctx.fillRect(0, 0, W, H);
+
+    // ===== 四周边墙（俯视角墙体厚度） =====
+    const wall = 28;
+    const wallGrad = ctx.createLinearGradient(0, 0, 0, wall);
+    wallGrad.addColorStop(0, this._darkenColor(bgColor, 50));
+    wallGrad.addColorStop(1, this._darkenColor(bgColor, 30));
+    ctx.fillStyle = wallGrad;
+    ctx.fillRect(0, 0, W, wall);               // 上墙
+    ctx.fillRect(0, H - wall, W, wall);        // 下墙
+    const wallGradV = ctx.createLinearGradient(0, 0, wall, 0);
+    wallGradV.addColorStop(0, this._darkenColor(bgColor, 50));
+    wallGradV.addColorStop(1, this._darkenColor(bgColor, 30));
+    ctx.fillStyle = wallGradV;
+    ctx.fillRect(0, 0, wall, H);               // 左墙
+    ctx.fillRect(W - wall, 0, wall, H);        // 右墙
+    // 墙体边缘高光
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(wall, wall, W - wall * 2, H - wall * 2);
+
+    // ===== 右侧出口门（俯视角：墙上的门） =====
+    const doorX = W - wall;
+    const doorY = H / 2;
+    const doorH = 100;
     if (this.roomCleared) {
-      // 门打开 - 绿色光门（径向渐变光晕）
-      const doorGrad = ctx.createRadialGradient(doorX, this.groundY * 0.5, 10, doorX, this.groundY * 0.5, 80);
-      doorGrad.addColorStop(0, 'rgba(81,207,102,0.5)');
+      // 门打开 - 绿色光门
+      const doorGrad = ctx.createRadialGradient(doorX - 10, doorY, 8, doorX - 10, doorY, 70);
+      doorGrad.addColorStop(0, 'rgba(81,207,102,0.55)');
       doorGrad.addColorStop(1, 'rgba(81,207,102,0)');
       ctx.fillStyle = doorGrad;
-      ctx.fillRect(doorX - 60, 0, 120, this.groundY + 48);
-      ctx.fillStyle = 'rgba(81,207,102,0.3)';
-      ctx.fillRect(doorX - 20, 0, 50, this.groundY + 48);
+      ctx.fillRect(doorX - 70, doorY - doorH / 2, 70, doorH);
+      ctx.fillStyle = 'rgba(81,207,102,0.35)';
+      ctx.fillRect(doorX - 24, doorY - doorH / 2, 24, doorH);
       ctx.fillStyle = '#51cf66';
-      ctx.font = 'bold 14px sans-serif';
+      ctx.font = 'bold 18px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('→', doorX, this.groundY * 0.5);
+      ctx.fillText('→', doorX - 12, doorY + 6);
       ctx.textAlign = 'left';
     } else {
       // 门关闭 - 红色锁门
-      ctx.fillStyle = 'rgba(250,82,82,0.2)';
-      ctx.fillRect(doorX - 20, 0, 40, this.groundY + 48);
-      ctx.strokeStyle = 'rgba(250,82,82,0.5)';
+      ctx.fillStyle = 'rgba(250,82,82,0.25)';
+      ctx.fillRect(doorX - 24, doorY - doorH / 2, 24, doorH);
+      ctx.strokeStyle = 'rgba(250,82,82,0.6)';
       ctx.lineWidth = 2;
-      ctx.strokeRect(doorX - 20, 0, 40, this.groundY + 48);
+      ctx.strokeRect(doorX - 24, doorY - doorH / 2, 24, doorH);
+      ctx.fillStyle = '#fa5252';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🔒', doorX - 12, doorY + 5);
+      ctx.textAlign = 'left';
     }
 
     // 墨迹区域
@@ -1039,10 +1038,11 @@ export class GameScene extends Phaser.Scene {
     const rl = this.roguelike;
     const isSpecial = rl.specialBullet !== 'normal' && rl.specialAmmo > 0;
     this.player.lastFireAt = now;
-    const bx = this.player.x + this.player.w - 4;
-    const by = this.player.y + 18;
+    // 俯视角：子弹从玩家中心射出，朝向最近敌人
+    const bx = this.player.x;
+    const by = this.player.y;
     const targetX = this.boss ? this.boss.x + this.boss.w / 2 : (this.enemies[0]?.x || this.logicW);
-    const targetY = this.boss ? this.boss.y + this.boss.h / 2 : (this.enemies[0]?.y || this.groundY);
+    const targetY = this.boss ? this.boss.y + this.boss.h / 2 : (this.enemies[0]?.y || this.logicH / 2);
     const dx = targetX - bx, dy = targetY - by;
     const L = Math.hypot(dx, dy) || 1;
     let damage = weapon.damage * this.player.attackMultiplier;
@@ -1137,7 +1137,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   _collisions(now) {
-    const pBox = { x: this.player.x + 6, y: this.player.y + 10, w: this.player.w - 12, h: this.player.h - 18 };
+    // 俯视角：玩家以 (x,y) 为中心，碰撞框居中
+    const phw = this.player.w / 2 - 6, phh = this.player.h / 2 - 6;
+    const pBox = { x: this.player.x - phw, y: this.player.y - phh, w: phw * 2, h: phh * 2 };
     // 玩家子弹 vs BOSS
     if (this.boss && !this.boss.defeated) {
       const bbox = this.boss.getHitBox();

@@ -113,6 +113,10 @@ export class UIScene extends Phaser.Scene {
     this.events.on('update', this._update, this);
   }
 
+  update() {
+    this._update();
+  }
+
   _update() {
     const game = this.scene.get('Game');
     if (!game || !game.player) return;

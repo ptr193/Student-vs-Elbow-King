@@ -55,7 +55,7 @@ export class CycleEventManager {
     // 虚影：半透明蓝色人影
     this.phantom = s.add.rectangle(0, 0, 24, 48, 0x74c0fc, 0.35).setOrigin(0.5);
     this.phantomHead = s.add.circle(0, -30, 10, 0x74c0fc, 0.35);
-    this.phantomContainer = s.add.container(200, s.groundY - 24, [this.phantom, this.phantomHead]);
+    this.phantomContainer = s.add.container(200, s.logicH * 0.6, [this.phantom, this.phantomHead]);
     this.nextMonologueAt = performance.now() + 4000;
   }
 
@@ -110,7 +110,7 @@ export class CycleEventManager {
   _spawnChaser(chIdx) {
     const s = this.scene;
     const name = this.classmateNames[chIdx % this.classmateNames.length];
-    const sprite = s.add.rectangle(s.logicW * 0.8, s.groundY - 24, 22, 44, 0x868e96, 0.9).setOrigin(0.5);
+    const sprite = s.add.rectangle(s.logicW * 0.8, s.logicH * 0.5, 22, 44, 0x868e96, 0.9).setOrigin(0.5);
     const head = s.add.circle(0, -26, 9, 0xadb5bd, 0.9);
     const container = s.add.container(sprite.x, sprite.y, [sprite, head]);
     container.name = name;
@@ -153,7 +153,7 @@ export class CycleEventManager {
     const s = this.scene;
     const body = s.add.rectangle(0, 0, 20, 44, 0xf06595, 0.9).setOrigin(0.5);
     const head = s.add.circle(0, -26, 10, 0xfcc2d3, 0.95);
-    this.wife = s.add.container(150, s.groundY - 22, [body, head]);
+    this.wife = s.add.container(150, s.logicH * 0.6, [body, head]);
     this.wifeSpeed = 0.8;
   }
 

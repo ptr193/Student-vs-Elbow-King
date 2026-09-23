@@ -1,5 +1,6 @@
 import playerConfig from '../config/player.json';
 
+// 俯视角玩家：四向自由移动，无重力、无跳跃
 export class Player {
   constructor(scene, x, y) {
     this.scene = scene;
@@ -11,9 +12,10 @@ export class Player {
     this.vy = 0;
     this.maxHp = playerConfig.maxHp;
     this.hp = playerConfig.maxHp;
-    this.onGround = true;
-    this.jumpCount = 0;
-    this.facing = 1;
+    // 朝向角度（弧度），用于子弹发射方向和精灵朝向
+    this.angle = 0;
+    this.facingX = 1;
+    this.facingY = 0;
     this.lastFireAt = 0;
     this.invincibleUntil = 0;
     this.flashUntil = 0;
@@ -29,7 +31,6 @@ export class Player {
     this.fireRateMult = 1;
     this.bulletSpeedMult = 1;
     this.invincibleBonus = 0;
-    this.jumpBonus = 0;
   }
 
   applySkill(skill) {
@@ -39,59 +40,51 @@ export class Player {
       case 'fireRate': this.fireRateMult = skill.value; break;
       case 'bulletSpeed': this.bulletSpeedMult = skill.value; break;
       case 'maxHp': this.maxHp += skill.value; this.hp += skill.value; break;
-      case 'jumpBonus': this.jumpBonus = skill.value; break;
       case 'invincibleBonus': this.invincibleBonus = skill.value; break;
     }
   }
 
-  update(input, dt, groundY) {
+  // input: { moveX, moveY, fire }
+  update(input, dt, bounds) {
     const now = performance.now();
-    // 控制锁定（如三周目"为什么"动画期间）
+    // 控制锁定
     if (this.controlLocked) {
-      this.vx = 0;
-      input.jumpPressed = false;
+      this.vx = 0; this.vy = 0;
       return;
     }
-    // 减速
+    // 基础速度
     let speed = playerConfig.moveSpeed * this.moveSpeedMult;
     if (now < this.slowUntil) speed *= 0.5;
-    // 眩晕
     if (now < this.stunUntil) {
-      this.vx = 0;
+      this.vx = 0; this.vy = 0;
     } else {
-      this.vx = input.moveX * speed;
-    }
-    if (Math.abs(this.vx) > 0.01) this.facing = this.vx > 0 ? 1 : -1;
-
-    // 跳跃
-    if (input.jumpPressed) {
-      if (this.onGround) {
-        this.vy = playerConfig.jumpVelocity;
-        this.onGround = false;
-        this.jumpCount = 1;
-        this.scene.audio?.jump();
-      } else if (this.jumpCount < 2) {
-        this.vy = playerConfig.jumpVelocity * (playerConfig.doubleJumpMultiplier + this.jumpBonus);
-        this.jumpCount = 2;
-        this.scene.audio?.doubleJump();
+      // 归一化斜向移动，避免对角线更快
+      let mx = input.moveX || 0;
+      let my = input.moveY || 0;
+      const len = Math.hypot(mx, my);
+      if (len > 0.01) {
+        mx /= len; my /= len;
+        this.vx = mx * speed;
+        this.vy = my * speed;
+        this.facingX = mx;
+        this.facingY = my;
+        this.angle = Math.atan2(my, mx);
+      } else {
+        this.vx = 0; this.vy = 0;
       }
     }
-    input.jumpPressed = false;
 
-    // 重力
-    this.vy += 0.58;
     this.x += this.vx;
     this.y += this.vy;
-    if (this.y >= groundY) {
-      this.y = groundY;
-      this.vy = 0;
-      this.onGround = true;
-      this.jumpCount = 0;
-    }
-    // 边界
-    const lw = this.scene?.logicW || 960;
-    if (this.x < 6) this.x = 6;
-    if (this.x + this.w > lw - 6) this.x = lw - 6 - this.w;
+
+    // 边界限制（俯视角：四面墙）
+    const lw = this.scene?.logicW || 1280;
+    const lh = this.scene?.logicH || 720;
+    const pad = this.w / 2;
+    if (this.x < pad) this.x = pad;
+    if (this.x > lw - pad) this.x = lw - pad;
+    if (this.y < pad) this.y = pad;
+    if (this.y > lh - pad) this.y = lh - pad;
   }
 
   takeDamage(now, amount = 1) {
@@ -122,8 +115,9 @@ export class Player {
     if (invincible && Math.floor(now / 80) % 2 === 0) draw = false;
     if (draw) {
       ctx.save();
-      ctx.translate(this.x + this.w / 2, this.y + this.h / 2);
-      if (this.facing < 0) ctx.scale(-1, 1);
+      ctx.translate(this.x, this.y);
+      // 俯视角朝向旋转
+      ctx.rotate(this.angle);
       if (flash) ctx.filter = 'brightness(2.2) saturate(1.6)';
       ctx.drawImage(texture, -this.w / 2, -this.h / 2, this.w, this.h);
       ctx.restore();
@@ -135,7 +129,7 @@ export class Player {
       ctx.strokeStyle = '#74c0fc';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(this.x + this.w / 2, this.y + this.h / 2, this.w * 0.8, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, this.w * 0.8, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -143,12 +137,12 @@ export class Player {
     if (this.attackMultiplier >= 2) {
       ctx.save();
       ctx.globalAlpha = 0.4;
-      const g = ctx.createRadialGradient(this.x + this.w / 2, this.y + this.h / 2, 5, this.x + this.w / 2, this.y + this.h / 2, 60);
+      const g = ctx.createRadialGradient(this.x, this.y, 5, this.x, this.y, 60);
       g.addColorStop(0, 'rgba(255,243,191,0.6)');
       g.addColorStop(1, 'rgba(255,243,191,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(this.x + this.w / 2, this.y + this.h / 2, 60, 0, Math.PI * 2);
+      ctx.arc(this.x, this.y, 60, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
