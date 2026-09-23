@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+www/
+dist/
+build/
+
+# Android / Gradle
+android/.gradle/
+android/app/build/
+android/local.properties
+android/captures/
+android/*.iml
+android/app/*.iml
+android/debug.keystore
+android/release.keystore
+android/app/release/
+.externalNativeBuild/
+.cxx/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / Local config
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project-specific build artifacts
+*.apk
+*.aab
+*.jar
+项目源码.zip
+.trae-html-share-packages/
+src_extract/
