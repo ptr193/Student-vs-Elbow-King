@@ -333,53 +333,57 @@ export class GameScene extends Phaser.Scene {
   }
 
   _setupTouchControls() {
-    // 使用固定逻辑分辨率 1280x720，避免 scale.width 在 WebView 初始化阶段返回错误值
     const W = this.logicW, H = this.logicH;
-    // 左侧移动区
-    const moveZone = this.add.zone(0, 0, W * 0.5, H)
-      .setOrigin(0, 0).setDepth(50).setInteractive();
-    moveZone.on('pointerdown', (p) => this._moveStart(p));
-    moveZone.on('pointermove', (p) => this._moveMove(p));
-    moveZone.on('pointerup', () => this._moveEnd());
-    moveZone.on('pointercancel', () => this._moveEnd());
-    this._movePointer = null;
+    this._movePointerId = null;
     this._moveCenter = { x: 0, y: 0 };
+    this._firePointerId = null;
 
-    // 右侧射击区（俯视角：按住即自动瞄准最近敌人射击）
-    const fireZone = this.add.zone(W * 0.5, 0, W * 0.5, H)
-      .setOrigin(0, 0).setDepth(50).setInteractive();
-    fireZone.on('pointerdown', () => { this.inputState.fire = true; });
-    fireZone.on('pointerup', () => { this.inputState.fire = false; });
-    fireZone.on('pointerleave', () => { this.inputState.fire = false; });
-    fireZone.on('pointercancel', () => { this.inputState.fire = false; });
-
-    // 抽查点击
+    // 全局指针事件，支持多点触控（左半屏移动 + 右半屏射击可同时进行）
     this.input.on('pointerdown', (p) => {
+      // 抽查答题优先
       if (this.boss instanceof MinibossReader && this.boss.quizActive) {
-        // 转换到逻辑坐标
         const lx = p.x / W * this.logicW;
         const ly = p.y / H * this.logicH;
         const idx = this.boss.getQuizOptionAt(lx, ly, this.logicW, this.logicH);
-        if (idx >= 0) this.boss.answerQuiz(idx, performance.now());
+        if (idx >= 0) { this.boss.answerQuiz(idx, performance.now()); return; }
+      }
+      // 左半屏 = 移动
+      if (p.x < W / 2) {
+        if (this._movePointerId === null) {
+          this._movePointerId = p.id;
+          this._moveCenter = { x: p.x, y: p.y };
+        }
+      } else {
+        // 右半屏 = 射击
+        if (this._firePointerId === null) {
+          this._firePointerId = p.id;
+          this.inputState.fire = true;
+        }
       }
     });
-  }
 
-  _moveStart(p) {
-    this._movePointer = p;
-    this._moveCenter = { x: p.x, y: p.y };
-  }
-  _moveMove(p) {
-    if (!this._movePointer) return;
-    const dx = p.x - this._moveCenter.x;
-    const dy = p.y - this._moveCenter.y;
-    this.inputState.moveX = Math.max(-1, Math.min(1, dx / 80));
-    this.inputState.moveY = Math.max(-1, Math.min(1, dy / 80));
-  }
-  _moveEnd() {
-    this._movePointer = null;
-    this.inputState.moveX = 0;
-    this.inputState.moveY = 0;
+    this.input.on('pointermove', (p) => {
+      if (p.id === this._movePointerId) {
+        const dx = p.x - this._moveCenter.x;
+        const dy = p.y - this._moveCenter.y;
+        this.inputState.moveX = Math.max(-1, Math.min(1, dx / 80));
+        this.inputState.moveY = Math.max(-1, Math.min(1, dy / 80));
+      }
+    });
+
+    const endPointer = (p) => {
+      if (p.id === this._movePointerId) {
+        this._movePointerId = null;
+        this.inputState.moveX = 0;
+        this.inputState.moveY = 0;
+      }
+      if (p.id === this._firePointerId) {
+        this._firePointerId = null;
+        this.inputState.fire = false;
+      }
+    };
+    this.input.on('pointerup', endPointer);
+    this.input.on('pointercancel', endPointer);
   }
 
   _loadRoom() {
@@ -624,23 +628,31 @@ export class GameScene extends Phaser.Scene {
     // 检查房间是否清空
     const room = this.roguelike.getCurrentRoom();
     if (room && (room.type === 'battle' || room.type === 'trap')) {
-      if (this.enemies.length === 0) {
+      if (this.enemies.length === 0 && !this.roomCleared) {
         this.roomCleared = true;
         room.cleared = true;
         this.showBanner('房间清空！→ 继续', '#51cf66');
       }
     } else if (room && room.type === 'stageBoss') {
-      if ((!this.boss || this.boss.defeated) && !this.bossDefeated.has(room.type + room.chapter)) {
-        this.bossDefeated.add(room.type + room.chapter);
-        this._onStageBossDefeated();
+      if (this.boss && this.boss.defeated && !this.roomCleared) {
+        this.roomCleared = true;
+        room.cleared = true;
+        if (!this.bossDefeated.has(room.type + room.chapter)) {
+          this.bossDefeated.add(room.type + room.chapter);
+          this._onStageBossDefeated();
+        }
       }
     } else if (room && room.type === 'miniBoss') {
-      // BOSS 被击败后进入下一间
+      if (this.boss && this.boss.defeated && !this.roomCleared) {
+        this.roomCleared = true;
+        room.cleared = true;
+        this.showBanner('已击败！→ 继续', '#51cf66');
+      }
     } else if (room && (room.type === 'item' || room.type === 'rest')) {
       // 休息回血
-      if (room.type === 'rest') {
+      if (room.type === 'rest' && !room.cleared) {
         this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1);
-        room.type = 'cleared';
+        room.cleared = true;
       }
     }
 

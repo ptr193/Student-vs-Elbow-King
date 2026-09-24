@@ -1,7 +1,7 @@
 {
-  "width": 44,
-  "height": 44,
-  "moveSpeed": 3.2,
+  "width": 60,
+  "height": 115,
+  "moveSpeed": 3.6,
   "maxHp": 2,
   "fireCooldownMs": 180,
   "invincibleMs": 900

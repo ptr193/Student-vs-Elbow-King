@@ -7,10 +7,18 @@ export class SuccessionSystem {
     this.currentGen = 1;
     this.currentName = '';
     this.currentGender = '';
-    this._rollNewCharacter();
+    // 第一任起义军：男性，无具体名字（仅显示"起义军"）
+    this.currentGender = '男';
+    this.currentName = '起义军';
   }
 
   _rollNewCharacter() {
+    // 第一任保持固定；从第二任开始随机名字和性别
+    if (this.currentGen <= 1) {
+      this.currentGender = '男';
+      this.currentName = '起义军';
+      return;
+    }
     const gender = Math.random() < 0.5 ? '男' : '女';
     const pool = gender === '男' ? names.male : names.female;
     this.currentGender = gender;
@@ -18,6 +26,10 @@ export class SuccessionSystem {
   }
 
   getDisplay() {
+    // 第一任不显示名字，只显示编号和性别
+    if (this.currentGen <= 1) {
+      return `第 ${this.currentGen} 任起义军（${this.currentGender}）`;
+    }
     return `第 ${this.currentGen} 任起义军：${this.currentName}（${this.currentGender}）`;
   }
 

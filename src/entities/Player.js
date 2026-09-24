@@ -113,11 +113,21 @@ export class Player {
     const flash = now < this.flashUntil;
     let draw = true;
     if (invincible && Math.floor(now / 80) % 2 === 0) draw = false;
+
+    // 脚底阴影
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(this.x, this.y + this.h / 2 - 4, this.w * 0.45, this.w * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     if (draw) {
       ctx.save();
       ctx.translate(this.x, this.y);
-      // 俯视角朝向旋转
-      ctx.rotate(this.angle);
+      // 侧视精灵不做旋转，仅根据朝向水平翻转
+      if (this.facingX < 0) ctx.scale(-1, 1);
       if (flash) ctx.filter = 'brightness(2.2) saturate(1.6)';
       ctx.drawImage(texture, -this.w / 2, -this.h / 2, this.w, this.h);
       ctx.restore();
