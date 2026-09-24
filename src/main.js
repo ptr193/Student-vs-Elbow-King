@@ -48,4 +48,15 @@ const game = new Phaser.Game(config);
 game.registry.set('audio', audio);
 window.game = game; // 暴露到全局便于调试
 
+// 沉浸式全屏后 WebView 尺寸会变化，延迟刷新 scale 确保 HUD 定位正确
+setTimeout(() => {
+  try { game.scale.refresh(); } catch (e) {}
+}, 300);
+setTimeout(() => {
+  try { game.scale.refresh(); } catch (e) {}
+}, 1000);
+window.addEventListener('resize', () => {
+  try { game.scale.refresh(); } catch (e) {}
+});
+
 export { game, audio };
