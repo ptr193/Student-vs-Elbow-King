@@ -333,28 +333,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   _setupTouchControls() {
+    // 使用固定逻辑分辨率 1280x720，避免 scale.width 在 WebView 初始化阶段返回错误值
+    const W = this.logicW, H = this.logicH;
     // 左侧移动区
-    const moveZone = this.add.zone(0, 0, this.scale.width * 0.5, this.scale.height)
-      .setOrigin(0, 0).setInteractive();
+    const moveZone = this.add.zone(0, 0, W * 0.5, H)
+      .setOrigin(0, 0).setDepth(50).setInteractive();
     moveZone.on('pointerdown', (p) => this._moveStart(p));
     moveZone.on('pointermove', (p) => this._moveMove(p));
     moveZone.on('pointerup', () => this._moveEnd());
+    moveZone.on('pointercancel', () => this._moveEnd());
     this._movePointer = null;
     this._moveCenter = { x: 0, y: 0 };
 
     // 右侧射击区（俯视角：按住即自动瞄准最近敌人射击）
-    const fireZone = this.add.zone(this.scale.width * 0.5, 0, this.scale.width * 0.5, this.scale.height)
-      .setOrigin(0, 0).setInteractive();
+    const fireZone = this.add.zone(W * 0.5, 0, W * 0.5, H)
+      .setOrigin(0, 0).setDepth(50).setInteractive();
     fireZone.on('pointerdown', () => { this.inputState.fire = true; });
     fireZone.on('pointerup', () => { this.inputState.fire = false; });
     fireZone.on('pointerleave', () => { this.inputState.fire = false; });
+    fireZone.on('pointercancel', () => { this.inputState.fire = false; });
 
     // 抽查点击
     this.input.on('pointerdown', (p) => {
       if (this.boss instanceof MinibossReader && this.boss.quizActive) {
         // 转换到逻辑坐标
-        const lx = p.x / this.scale.width * this.logicW;
-        const ly = p.y / this.scale.height * this.logicH;
+        const lx = p.x / W * this.logicW;
+        const ly = p.y / H * this.logicH;
         const idx = this.boss.getQuizOptionAt(lx, ly, this.logicW, this.logicH);
         if (idx >= 0) this.boss.answerQuiz(idx, performance.now());
       }
@@ -504,13 +508,16 @@ export class GameScene extends Phaser.Scene {
     if (this.dialogueActive) return;
 
     // 键盘轮询（俯视角：WASD / 方向键 四向移动）
+    // 注意：只在有键盘输入时覆盖触摸输入，否则触摸移动会被每帧重置为 0
     let mx = 0, my = 0;
     if (this.keys.left.isDown) mx -= 1;
     if (this.keys.right.isDown) mx += 1;
     if (this.keys.up.isDown) my -= 1;
     if (this.keys.down.isDown) my += 1;
-    this.inputState.moveX = mx;
-    this.inputState.moveY = my;
+    if (mx !== 0 || my !== 0) {
+      this.inputState.moveX = mx;
+      this.inputState.moveY = my;
+    }
 
     // 玩家（减速带判定）
     if (this.slowZones) {
