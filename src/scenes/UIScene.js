@@ -40,8 +40,13 @@ export class UIScene extends Phaser.Scene {
 
   create(data) {
     this.pauseMode = data?.pause;
-    const W = this.scale.width, H = this.scale.height;
+    // 固定使用游戏逻辑分辨率（横屏 1280x720），避免 scale.width 在某些 WebView
+    // 初始化阶段返回 0 或屏幕物理像素导致 UI 错位
+    const W = 1280, H = 720;
     this.W = W; this.H = H;
+
+    // 确保 UIScene 渲染在所有场景最顶层
+    this.scene.bringToTop('UIScene');
 
     if (this.pauseMode) {
       this._createPauseOverlay();
@@ -50,43 +55,43 @@ export class UIScene extends Phaser.Scene {
 
     // 左上信息面板
     makePanelTexture(this, 'hud_panel', 280, 100, 'rgba(20,20,40,0.85)', 'rgba(10,10,25,0.85)', 'rgba(255,212,59,0.4)');
-    this.add.image(16, 16, 'hud_panel').setOrigin(0, 0).setDisplaySize(280, 100);
+    this.add.image(16, 16, 'hud_panel').setOrigin(0, 0).setDisplaySize(280, 100).setDepth(100);
 
     // 右上房间信息面板
     makePanelTexture(this, 'hud_panel_r', 180, 60, 'rgba(20,20,40,0.85)', 'rgba(10,10,25,0.85)', 'rgba(170,176,255,0.4)');
-    this.add.image(W - 16, 16, 'hud_panel_r').setOrigin(1, 0).setDisplaySize(180, 60);
+    this.add.image(W - 16, 16, 'hud_panel_r').setOrigin(1, 0).setDisplaySize(180, 60).setDepth(100);
 
     // 血量（带心形图标）
     this.hpText = this.add.text(28, 28, '', {
       fontFamily: 'sans-serif', fontSize: '22px', color: '#51cf66',
       fontStyle: 'bold',
-    }).setShadow(0, 0, '#51cf66', 6, true, true);
+    }).setShadow(0, 0, '#51cf66', 6, true, true).setDepth(101);
 
     // 起义军信息
     this.rebelText = this.add.text(28, 58, '', {
       fontFamily: 'sans-serif', fontSize: '15px', color: '#cc5de8',
-    });
+    }).setDepth(101);
 
     // 金币
     this.goldText = this.add.text(28, 82, '', {
       fontFamily: 'sans-serif', fontSize: '15px', color: '#ffd43b',
-    });
+    }).setDepth(101);
 
     // 右上：房间 + 章节
     this.roomText = this.add.text(W - 28, 28, '', {
       fontFamily: 'sans-serif', fontSize: '16px', color: '#f8f9fa', fontStyle: 'bold',
-    }).setOrigin(1, 0);
+    }).setOrigin(1, 0).setDepth(101);
     this.chapterText = this.add.text(W - 28, 52, '', {
       fontFamily: 'sans-serif', fontSize: '13px', color: '#868e96',
-    }).setOrigin(1, 0);
+    }).setOrigin(1, 0).setDepth(101);
 
     // 左下：技能 + 特殊弹
     this.skillText = this.add.text(16, H - 24, '', {
       fontFamily: 'sans-serif', fontSize: '14px', color: '#74c0fc',
-    });
+    }).setDepth(101);
     this.bulletText = this.add.text(16, H - 46, '', {
       fontFamily: 'sans-serif', fontSize: '14px', color: '#ff006e', fontStyle: 'bold',
-    });
+    }).setDepth(101);
 
     // 道具栏（3 格，右下）
     this.itemSlots = [];
@@ -97,7 +102,7 @@ export class UIScene extends Phaser.Scene {
       const sx = slotsStartX + i * (slotSize + slotGap);
       const sy = H - 16 - slotSize;
       makePanelTexture(this, `slot_${i}`, slotSize, slotSize, 'rgba(26,26,46,0.9)', 'rgba(14,14,30,0.9)', 'rgba(73,80,87,0.8)');
-      const slot = this.add.container(sx, sy);
+      const slot = this.add.container(sx, sy).setDepth(100);
       const bg = this.add.image(0, 0, `slot_${i}`).setOrigin(0, 0).setDisplaySize(slotSize, slotSize);
       const keyLabel = this.add.text(slotSize / 2, -14, String(i + 1), {
         fontFamily: 'sans-serif', fontSize: '12px', color: '#868e96',
@@ -109,8 +114,6 @@ export class UIScene extends Phaser.Scene {
       slot.add([bg, keyLabel, nameLabel]);
       this.itemSlots.push({ bg, nameLabel, slotSize });
     }
-
-    this.events.on('update', this._update, this);
   }
 
   update() {
@@ -156,23 +159,23 @@ export class UIScene extends Phaser.Scene {
   }
 
   _createPauseOverlay() {
-    const W = this.scale.width, H = this.scale.height;
+    const W = 1280, H = 720;
     const game = this.scene.get('Game');
     // 半透明遮罩 + 模糊感（深色渐变）
-    const overlay = this.add.graphics();
+    const overlay = this.add.graphics().setDepth(200);
     overlay.fillGradientStyle(0x000000, 0x000000, 0x0a0515, 0x0a0515, 0.85);
     overlay.fillRect(0, 0, W, H);
 
     this.add.text(W / 2, H * 0.14, '暂停', {
       fontFamily: 'sans-serif', fontSize: '56px', color: '#ffd43b', fontStyle: 'bold',
-    }).setOrigin(0.5).setShadow(0, 0, '#ff006e', 16, true, true);
+    }).setOrigin(0.5).setShadow(0, 0, '#ff006e', 16, true, true).setDepth(201);
 
     if (game.runStartTime) {
       const elapsed = Math.floor((performance.now() - game.runStartTime) / 1000);
       const m = Math.floor(elapsed / 60), s = elapsed % 60;
       this.add.text(W / 2, H * 0.24, '存活时间：' + m + ':' + String(s).padStart(2, '0'), {
         fontFamily: 'sans-serif', fontSize: '20px', color: '#adb5bd',
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(201);
     }
 
     if (game.roguelike) {
@@ -180,7 +183,7 @@ export class UIScene extends Phaser.Scene {
       if (ch) {
         this.add.text(W / 2, H * 0.29, '当前阶段：' + ch.id + ' · ' + ch.name, {
           fontFamily: 'sans-serif', fontSize: '17px', color: '#868e96',
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(201);
       }
     }
 
@@ -188,12 +191,12 @@ export class UIScene extends Phaser.Scene {
       let y = H * 0.36;
       this.add.text(W / 2, y, '已收集道具：', {
         fontFamily: 'sans-serif', fontSize: '17px', color: '#ffd43b', fontStyle: 'bold',
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(201);
       y += 24;
       const itemText = game.itemSys.inventory.map(i => i.id).join('、');
       this.add.text(W / 2, y, itemText, {
         fontFamily: 'sans-serif', fontSize: '15px', color: '#dee2e6', wordWrap: { width: W * 0.8 },
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(201);
     }
 
     this._addButton('继续', W / 2, H * 0.52, () => {
@@ -238,10 +241,10 @@ export class UIScene extends Phaser.Scene {
       ctx.stroke();
       this.textures.addCanvas(key, canvas);
     }
-    const bg = this.add.image(x, y, key).setDisplaySize(w, h);
+    const bg = this.add.image(x, y, key).setDisplaySize(w, h).setDepth(201);
     const txt = this.add.text(x, y, text, {
       fontFamily: 'sans-serif', fontSize: '20px', color: '#f8f9fa', fontStyle: 'bold',
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(202);
     bg.setInteractive({ useHandCursor: true });
     bg.on('pointerover', () => { bg.setScale(1.04); });
     bg.on('pointerout', () => { bg.setScale(1); });
