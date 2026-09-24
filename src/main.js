@@ -32,7 +32,8 @@ const config = {
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
-    expandParent: true,
+    expandParent: false,
+    orientation: Phaser.Scale.Orientation.LANDSCAPE,
   },
   scene: [BootScene, MenuScene, OpeningNarrativeScene, WeaponSelectScene, GameScene, UIScene, EndScene, EndingCrawlScene, SuccessionScene, CodexScene, CollectionScene, AboutScene, CycleTransitionScene, AchievementScene, LeaderboardScene],
   render: {
